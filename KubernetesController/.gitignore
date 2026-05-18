@@ -1,0 +1,57 @@
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Build results
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+
+# .NET
+*.dll
+*.exe
+*.pdb
+*.cache
+*.log
+*.tmp
+
+# NuGet
+*.nupkg
+packages/
+project.lock.json
+project.assets.json
+
+# Rider / JetBrains
+.idea/
+*.sln.iml
+
+# VS Code
+.vscode/
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Test results
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+
+# Publish output
+publish/
+*.publishsettings
+
+# Backup files
+*.bak
+*.orig
+*.rej
