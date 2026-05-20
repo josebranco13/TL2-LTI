@@ -32,6 +32,10 @@
             this.label2 = new System.Windows.Forms.Label();
             this.txtBaseUrl = new System.Windows.Forms.TextBox();
             this.btnConnect = new System.Windows.Forms.Button();
+            this.label3 = new System.Windows.Forms.Label();
+            this.txtToken = new System.Windows.Forms.TextBox();
+            this.label4 = new System.Windows.Forms.Label();
+            this.chkCredenciais = new System.Windows.Forms.CheckBox();
             this.SuspendLayout();
             // 
             // label1
@@ -56,14 +60,14 @@
             // 
             // txtBaseUrl
             // 
-            this.txtBaseUrl.Location = new System.Drawing.Point(373, 274);
+            this.txtBaseUrl.Location = new System.Drawing.Point(373, 222);
             this.txtBaseUrl.Name = "txtBaseUrl";
             this.txtBaseUrl.Size = new System.Drawing.Size(561, 26);
             this.txtBaseUrl.TabIndex = 2;
             // 
             // btnConnect
             // 
-            this.btnConnect.Location = new System.Drawing.Point(562, 366);
+            this.btnConnect.Location = new System.Drawing.Point(551, 444);
             this.btnConnect.Name = "btnConnect";
             this.btnConnect.Size = new System.Drawing.Size(165, 36);
             this.btnConnect.TabIndex = 3;
@@ -71,17 +75,57 @@
             this.btnConnect.UseVisualStyleBackColor = true;
             this.btnConnect.Click += new System.EventHandler(this.btnConnect_Click);
             // 
+            // label3
+            // 
+            this.label3.AutoSize = true;
+            this.label3.Location = new System.Drawing.Point(275, 225);
+            this.label3.Name = "label3";
+            this.label3.Size = new System.Drawing.Size(87, 20);
+            this.label3.TabIndex = 4;
+            this.label3.Text = "IP ou URL:";
+            // 
+            // txtToken
+            // 
+            this.txtToken.Location = new System.Drawing.Point(373, 280);
+            this.txtToken.Name = "txtToken";
+            this.txtToken.Size = new System.Drawing.Size(561, 26);
+            this.txtToken.TabIndex = 5;
+            // 
+            // label4
+            // 
+            this.label4.AutoSize = true;
+            this.label4.Location = new System.Drawing.Point(292, 286);
+            this.label4.Name = "label4";
+            this.label4.Size = new System.Drawing.Size(57, 20);
+            this.label4.TabIndex = 6;
+            this.label4.Text = "Token:";
+            // 
+            // chkCredenciais
+            // 
+            this.chkCredenciais.AutoSize = true;
+            this.chkCredenciais.Location = new System.Drawing.Point(542, 362);
+            this.chkCredenciais.Name = "chkCredenciais";
+            this.chkCredenciais.Size = new System.Drawing.Size(193, 24);
+            this.chkCredenciais.TabIndex = 7;
+            this.chkCredenciais.Text = "Relembrar credenciais";
+            this.chkCredenciais.UseVisualStyleBackColor = true;
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(9F, 20F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1268, 589);
+            this.Controls.Add(this.chkCredenciais);
+            this.Controls.Add(this.label4);
+            this.Controls.Add(this.txtToken);
+            this.Controls.Add(this.label3);
             this.Controls.Add(this.btnConnect);
             this.Controls.Add(this.txtBaseUrl);
             this.Controls.Add(this.label2);
             this.Controls.Add(this.label1);
             this.Name = "Form1";
             this.Text = "K3s Controller";
+            this.Load += new System.EventHandler(this.Form1_Load);
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -93,6 +137,10 @@
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.TextBox txtBaseUrl;
         private System.Windows.Forms.Button btnConnect;
+        private System.Windows.Forms.Label label3;
+        private System.Windows.Forms.TextBox txtToken;
+        private System.Windows.Forms.Label label4;
+        private System.Windows.Forms.CheckBox chkCredenciais;
     }
 }
 

@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
-using System.Net.Http;
 
 namespace KubernetesController.Services
 {
@@ -11,12 +12,24 @@ namespace KubernetesController.Services
     {
         private readonly HttpClient _httpClient;
 
-        public KubernetesApiClient(string baseUrl)
+        public KubernetesApiClient(string baseUrl, string token = null)
         {
-            _httpClient = new HttpClient
+            var handler = new HttpClientHandler
+            {
+                ServerCertificateCustomValidationCallback =
+                    HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+            };
+
+            _httpClient = new HttpClient(handler)
             {
                 BaseAddress = new Uri(baseUrl.TrimEnd('/') + "/")
             };
+
+            if (!string.IsNullOrWhiteSpace(token))
+            {
+                _httpClient.DefaultRequestHeaders.Authorization =
+                    new AuthenticationHeaderValue("Bearer", token.Trim());
+            }
         }
 
         public async Task<string> GetAsync(string endpoint)
