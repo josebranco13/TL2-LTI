@@ -92,6 +92,7 @@
       <DependentUpon>Form1.cs</DependentUpon>
     </Compile>
     <Compile Include="Models\KubernetesNodeSummary.cs" />
+    <Compile Include="Models\KubernetesNodeDetails.cs" />
     <Compile Include="Models\KubernetesDashboardSummary.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

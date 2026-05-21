@@ -2,6 +2,7 @@ using KubernetesController.Models;
 using KubernetesController.Services;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Drawing;
 using System.Linq;
 using System.Text.Json;
@@ -20,6 +21,18 @@ namespace KubernetesController
         private KubernetesNodesService nodesService;
         private KubernetesDashboardService dashboardService;
         private bool layoutEventsConfigured;
+
+        private List<KubernetesNodeDetails> nodeDetails = new List<KubernetesNodeDetails>();
+        private TabControl tabNodeDetails;
+        private DataGridView dgvNodeSummary;
+        private DataGridView dgvNodeResources;
+        private DataGridView dgvNodeConditions;
+        private DataGridView dgvNodeNetwork;
+        private DataGridView dgvNodeSystem;
+        private DataGridView dgvNodeLabels;
+        private DataGridView dgvNodeAnnotations;
+        private DataGridView dgvNodeTaints;
+        private DataGridView dgvNodeImages;
 
         // Construtor vazio necessário para o Designer do Visual Studio
         public DashboardForm()
@@ -63,10 +76,9 @@ namespace KubernetesController
             dgvNodes.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
             dgvNodes.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
 
-            txtNodesRawJson.Multiline = true;
-            txtNodesRawJson.ReadOnly = true;
-            txtNodesRawJson.ScrollBars = ScrollBars.Both;
-            txtNodesRawJson.WordWrap = false;
+            txtNodesRawJson.Visible = false;
+
+            ConfigureNodeDetailsControls();
 
             lblTopImageValue.AutoSize = false;
             lblTopImageValue.AutoEllipsis = false;
@@ -77,6 +89,7 @@ namespace KubernetesController
                 layoutEventsConfigured = true;
                 this.Resize += DashboardForm_Resize;
                 tabKubernetesController.SelectedIndexChanged += TabKubernetesController_SelectedIndexChanged;
+                dgvNodes.SelectionChanged += dgvNodes_SelectionChanged;
             }
 
             ArrangeDashboardLayout();
@@ -209,18 +222,83 @@ namespace KubernetesController
                 return;
 
             int margin = 24;
+            int gap = 14;
             int contentWidth = Math.Max(780, pnlNodes.ClientSize.Width - SystemInformation.VerticalScrollBarWidth - (margin * 2));
 
             btnRefreshNodes.Location = new Point(margin, 20);
-            btnRefreshNodes.Size = new Size(160, 35);
+            btnRefreshNodes.Size = new Size(170, 35);
 
             dgvNodes.Location = new Point(margin, 70);
-            dgvNodes.Size = new Size(contentWidth, 280);
+            dgvNodes.Size = new Size(contentWidth, 250);
 
-            txtNodesRawJson.Location = new Point(margin, 380);
-            txtNodesRawJson.Size = new Size(contentWidth, Math.Max(420, pnlNodes.ClientSize.Height - 430));
+            if (tabNodeDetails != null)
+            {
+                tabNodeDetails.Location = new Point(margin, dgvNodes.Bottom + gap);
+                tabNodeDetails.Size = new Size(contentWidth, Math.Max(420, pnlNodes.ClientSize.Height - dgvNodes.Bottom - gap - margin));
+                tabNodeDetails.Anchor = AnchorStyles.Top | AnchorStyles.Left;
+                pnlNodes.AutoScrollMinSize = new Size(contentWidth + (margin * 2), tabNodeDetails.Bottom + margin);
+            }
+            else
+            {
+                pnlNodes.AutoScrollMinSize = new Size(contentWidth + (margin * 2), dgvNodes.Bottom + margin);
+            }
+        }
 
-            pnlNodes.AutoScrollMinSize = new Size(contentWidth + (margin * 2), txtNodesRawJson.Bottom + margin);
+        private void ConfigureNodeDetailsControls()
+        {
+            if (tabNodeDetails != null)
+                return;
+
+            if (pnlNodes.Controls.Contains(txtNodesRawJson))
+                pnlNodes.Controls.Remove(txtNodesRawJson);
+
+            tabNodeDetails = new TabControl();
+            tabNodeDetails.Name = "tabNodeDetails";
+
+            dgvNodeSummary = CreateNodeDetailsGrid("dgvNodeSummary");
+            dgvNodeResources = CreateNodeDetailsGrid("dgvNodeResources");
+            dgvNodeConditions = CreateNodeDetailsGrid("dgvNodeConditions");
+            dgvNodeNetwork = CreateNodeDetailsGrid("dgvNodeNetwork");
+            dgvNodeSystem = CreateNodeDetailsGrid("dgvNodeSystem");
+            dgvNodeLabels = CreateNodeDetailsGrid("dgvNodeLabels");
+            dgvNodeAnnotations = CreateNodeDetailsGrid("dgvNodeAnnotations");
+            dgvNodeTaints = CreateNodeDetailsGrid("dgvNodeTaints");
+            dgvNodeImages = CreateNodeDetailsGrid("dgvNodeImages");
+
+            AddNodeDetailsTab("Resumo", dgvNodeSummary);
+            AddNodeDetailsTab("Recursos", dgvNodeResources);
+            AddNodeDetailsTab("Condições", dgvNodeConditions);
+            AddNodeDetailsTab("Rede / K3s", dgvNodeNetwork);
+            AddNodeDetailsTab("Sistema", dgvNodeSystem);
+            AddNodeDetailsTab("Labels", dgvNodeLabels);
+            AddNodeDetailsTab("Annotations", dgvNodeAnnotations);
+            AddNodeDetailsTab("Taints", dgvNodeTaints);
+            AddNodeDetailsTab("Imagens", dgvNodeImages);
+
+            pnlNodes.Controls.Add(tabNodeDetails);
+        }
+
+        private DataGridView CreateNodeDetailsGrid(string name)
+        {
+            DataGridView grid = new DataGridView();
+            grid.Name = name;
+            grid.Dock = DockStyle.Fill;
+            grid.ReadOnly = true;
+            grid.AllowUserToAddRows = false;
+            grid.AllowUserToDeleteRows = false;
+            grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            grid.ScrollBars = ScrollBars.Both;
+            grid.RowHeadersVisible = false;
+            return grid;
+        }
+
+        private void AddNodeDetailsTab(string title, DataGridView grid)
+        {
+            TabPage page = new TabPage();
+            page.Text = title;
+            page.Controls.Add(grid);
+            tabNodeDetails.TabPages.Add(page);
         }
 
         private List<Panel> GetDashboardCards()
@@ -356,13 +434,19 @@ namespace KubernetesController
                 return;
 
             List<KubernetesNodeSummary> nodes = await nodesService.GetNodesAsync();
+            nodeDetails = await nodesService.GetNodeDetailsAsync();
 
             dgvNodes.DataSource = null;
             dgvNodes.DataSource = nodes;
             ConfigureNodesGridHeaders();
 
-            string rawJson = await nodesService.GetNodesRawJsonAsync();
-            txtNodesRawJson.Text = FormatJson(rawJson);
+            if (dgvNodes.Rows.Count > 0)
+                dgvNodes.Rows[0].Selected = true;
+
+            if (nodeDetails.Count > 0)
+                ShowNodeDetails(nodeDetails[0]);
+            else
+                ClearNodeDetails();
 
             ArrangeNodesLayout();
         }
@@ -386,6 +470,118 @@ namespace KubernetesController
 
             if (dgvNodes.Columns["ContainerRuntime"] != null)
                 dgvNodes.Columns["ContainerRuntime"].HeaderText = "Runtime";
+        }
+
+        private void dgvNodes_SelectionChanged(object sender, EventArgs e)
+        {
+            if (dgvNodes.CurrentRow == null || dgvNodes.CurrentRow.DataBoundItem == null)
+                return;
+
+            KubernetesNodeSummary selectedNode = dgvNodes.CurrentRow.DataBoundItem as KubernetesNodeSummary;
+            if (selectedNode == null || nodeDetails == null)
+                return;
+
+            KubernetesNodeDetails selectedDetails = nodeDetails.FirstOrDefault(n => n.Name == selectedNode.Name);
+            if (selectedDetails != null)
+                ShowNodeDetails(selectedDetails);
+        }
+
+        private void ShowNodeDetails(KubernetesNodeDetails node)
+        {
+            if (node == null)
+            {
+                ClearNodeDetails();
+                return;
+            }
+
+            dgvNodeSummary.DataSource = ToTable(new Dictionary<string, string>
+            {
+                { "Nome", node.Name },
+                { "Role", node.Role },
+                { "Estado", node.Status },
+                { "IP Interno", node.InternalIp },
+                { "Hostname", node.Hostname },
+                { "Criado em", node.CreationTimestamp },
+                { "Resource Version", node.ResourceVersion },
+                { "Provider ID", node.ProviderId }
+            });
+
+            dgvNodeResources.DataSource = ToTable(new Dictionary<string, string>
+            {
+                { "CPU Capacity", node.CpuCapacity },
+                { "CPU Allocatable", node.CpuAllocatable },
+                { "Memória Capacity", node.MemoryCapacityGiB + " GiB" },
+                { "Memória Allocatable", node.MemoryAllocatableGiB + " GiB" },
+                { "Pods Capacity", node.PodCapacity },
+                { "Pods Allocatable", node.PodAllocatable },
+                { "Storage Capacity", node.StorageCapacityGiB + " GiB" },
+                { "Storage Allocatable", node.StorageAllocatableGiB + " GiB" }
+            });
+
+            dgvNodeNetwork.DataSource = ToTable(new Dictionary<string, string>
+            {
+                { "Pod CIDR", node.PodCIDR },
+                { "Pod CIDRs", node.PodCIDRs },
+                { "Kubelet Port", node.KubeletPort },
+                { "Flannel Public IP", node.FlannelPublicIp },
+                { "Flannel Backend", node.FlannelBackendType },
+                { "K3s Internal IP", node.K3sInternalIp },
+                { "Node Args", node.NodeArgs }
+            });
+
+            dgvNodeSystem.DataSource = ToTable(new Dictionary<string, string>
+            {
+                { "Sistema Operativo", node.OsImage },
+                { "Kernel", node.KernelVersion },
+                { "Container Runtime", node.ContainerRuntime },
+                { "Kubelet", node.KubeletVersion },
+                { "Sistema", node.OperatingSystem },
+                { "Arquitetura", node.Architecture },
+                { "Machine ID", node.MachineID },
+                { "System UUID", node.SystemUUID },
+                { "Boot ID", node.BootID },
+                { "Swap", node.SwapGiB + " GiB" }
+            });
+
+            dgvNodeConditions.DataSource = null;
+            dgvNodeConditions.DataSource = node.Conditions;
+
+            dgvNodeLabels.DataSource = null;
+            dgvNodeLabels.DataSource = node.Labels;
+
+            dgvNodeAnnotations.DataSource = null;
+            dgvNodeAnnotations.DataSource = node.Annotations;
+
+            dgvNodeTaints.DataSource = null;
+            dgvNodeTaints.DataSource = node.Taints;
+
+            dgvNodeImages.DataSource = null;
+            dgvNodeImages.DataSource = node.Images;
+        }
+
+        private void ClearNodeDetails()
+        {
+            dgvNodeSummary.DataSource = null;
+            dgvNodeResources.DataSource = null;
+            dgvNodeConditions.DataSource = null;
+            dgvNodeNetwork.DataSource = null;
+            dgvNodeSystem.DataSource = null;
+            dgvNodeLabels.DataSource = null;
+            dgvNodeAnnotations.DataSource = null;
+            dgvNodeTaints.DataSource = null;
+            dgvNodeImages.DataSource = null;
+        }
+
+        private DataTable ToTable(Dictionary<string, string> values)
+        {
+            DataTable table = new DataTable();
+            table.Columns.Add("Campo");
+            table.Columns.Add("Valor");
+
+            foreach (KeyValuePair<string, string> item in values)
+                table.Rows.Add(item.Key, item.Value);
+
+            return table;
         }
 
         private string FormatJson(string json)

@@ -70,7 +70,7 @@ namespace KubernetesController.Services
                     else
                         summary.NotReadyNodes++;
 
-                    AddCount(summary.NodesStatus, ready ? "Ready" : "Not Ready");
+                    AddCount(summary.NodesStatus, ready ? "Pronto" : "Não Pronto");
 
                     int cpu = GetCpuValue(capacity);
                     double memoryGiB = GetMemoryGiB(capacity);
