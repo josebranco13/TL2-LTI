@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace KubernetesController.Services
 {
-    internal class KubernetesApiClient
+    public class KubernetesApiClient
     {
         private readonly HttpClient _httpClient;
 

@@ -59,7 +59,11 @@ namespace KubernetesController
                 btnConnect.Enabled = false;
                 Cursor = Cursors.WaitCursor;
 
-                string token = txtToken.Text.Trim();
+                string token = txtToken.Text
+                    .Replace("\r", "")
+                    .Replace("\n", "")
+                    .Trim();
+
                 string baseUrl = BuildK3sBaseUrl(txtBaseUrl.Text, token);
 
                 KubernetesApiClient api = new KubernetesApiClient(baseUrl, token);
@@ -70,7 +74,7 @@ namespace KubernetesController
 
                 MessageBox.Show("Ligação ao master K3s realizada com sucesso.");
 
-                AppNavigator.NavigateTo(new DashboardForm(baseUrl));
+                AppNavigator.NavigateTo(new DashboardForm(baseUrl, token));
             }
             catch (Exception ex)
             {
