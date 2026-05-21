@@ -91,10 +91,22 @@ namespace KubernetesController
             ArrangeNodesLayout();
         }
 
+        private void ResetDashboardScroll()
+        {
+            if (pnlDashboard == null)
+                return;
+
+            // Evita que, depois de atualizar, o AutoScroll mantenha uma posição antiga
+            // e empurre o conteúdo para baixo, criando espaço vazio no topo.
+            pnlDashboard.AutoScrollPosition = new Point(0, 0);
+        }
+
         private void ArrangeDashboardLayout()
         {
             if (pnlDashboard == null)
                 return;
+
+            ResetDashboardScroll();
 
             int margin = 24;
             int gap = 12;
@@ -232,7 +244,9 @@ namespace KubernetesController
                 lblConnectionInfo.Text = "Ligado a: " + baseUrl;
 
                 await api.GetAsync("/version");
+                ResetDashboardScroll();
                 await LoadDashboardAsync();
+                ResetDashboardScroll();
                 ArrangeDashboardLayout();
 
                 await LoadNodesTabAsync();
@@ -277,7 +291,9 @@ namespace KubernetesController
             LoadPieChart(chartPodStatus, "Estado dos Pods", summary.PodStatus);
             LoadColumnChart(chartDeploymentsByNamespace, "Deployments por Namespace", summary.DeploymentsByNamespace);
             LoadColumnChart(chartServicesByNamespace, "Services por Namespace", summary.ServicesByNamespace);
+            ForceIntegerYAxis(chartServicesByNamespace);
             LoadBarChart(chartImages, "Imagens encontradas", summary.ImagesCount, 8);
+            ForceIntegerYAxis(chartImages);
         }
 
         private async Task LoadNodesTabAsync()
@@ -442,6 +458,19 @@ namespace KubernetesController
             chart.Titles.Add(title);
         }
 
+        private void ForceIntegerYAxis(Chart chart)
+        {
+            if (chart.ChartAreas.Count == 0)
+                return;
+
+            ChartArea area = chart.ChartAreas[0];
+
+            area.AxisY.Minimum = 0;
+            area.AxisY.Interval = 1;
+            area.AxisY.LabelStyle.Format = "0";
+            area.AxisY.MajorGrid.Interval = 1;
+        }
+
         private string ShortenLabel(string value, int maxLength)
         {
             if (string.IsNullOrWhiteSpace(value))
@@ -458,7 +487,9 @@ namespace KubernetesController
             try
             {
                 btnRefreshDashboard.Enabled = false;
+                ResetDashboardScroll();
                 await LoadDashboardAsync();
+                ResetDashboardScroll();
                 ArrangeDashboardLayout();
             }
             catch (Exception ex)
