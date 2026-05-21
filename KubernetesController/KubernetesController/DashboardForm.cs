@@ -23,6 +23,8 @@ namespace KubernetesController
         private bool layoutEventsConfigured;
 
         private List<KubernetesNodeDetails> nodeDetails = new List<KubernetesNodeDetails>();
+        private bool nodeDetailsVisible = false;
+        private Button btnToggleNodeDetails;
         private TabControl tabNodeDetails;
         private DataGridView dgvNodeSummary;
         private DataGridView dgvNodeResources;
@@ -116,6 +118,17 @@ namespace KubernetesController
             // Evita que, depois de atualizar, o AutoScroll mantenha uma posição antiga
             // e empurre o conteúdo para baixo, criando espaço vazio no topo.
             pnlDashboard.AutoScrollPosition = new Point(0, 0);
+        }
+
+        private void ResetNodesScroll()
+        {
+            if (pnlNodes == null)
+                return;
+
+            // Quando os detalhes são escondidos, o painel pode manter a posição antiga
+            // do scroll. Isto cria um espaço vazio no topo. Ao voltar ao topo,
+            // a tabela dos nodes fica novamente encostada à posição correta.
+            pnlNodes.AutoScrollPosition = new Point(0, 0);
         }
 
         private void ArrangeDashboardLayout()
@@ -231,17 +244,32 @@ namespace KubernetesController
             dgvNodes.Location = new Point(margin, 70);
             dgvNodes.Size = new Size(contentWidth, 250);
 
+            int bottomContent = dgvNodes.Bottom;
+
+            if (btnToggleNodeDetails != null)
+            {
+                btnToggleNodeDetails.Size = new Size(170, 35);
+                btnToggleNodeDetails.Text = nodeDetailsVisible ? "Menos detalhes" : "Mais detalhes";
+                btnToggleNodeDetails.Location = new Point(margin + contentWidth - btnToggleNodeDetails.Width, dgvNodes.Bottom + gap);
+                btnToggleNodeDetails.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+                bottomContent = btnToggleNodeDetails.Bottom;
+            }
+
             if (tabNodeDetails != null)
             {
-                tabNodeDetails.Location = new Point(margin, dgvNodes.Bottom + gap);
-                tabNodeDetails.Size = new Size(contentWidth, Math.Max(420, pnlNodes.ClientSize.Height - dgvNodes.Bottom - gap - margin));
-                tabNodeDetails.Anchor = AnchorStyles.Top | AnchorStyles.Left;
-                pnlNodes.AutoScrollMinSize = new Size(contentWidth + (margin * 2), tabNodeDetails.Bottom + margin);
+                tabNodeDetails.Visible = nodeDetailsVisible;
+
+                if (nodeDetailsVisible)
+                {
+                    int detailsTop = bottomContent + gap;
+                    tabNodeDetails.Location = new Point(margin, detailsTop);
+                    tabNodeDetails.Size = new Size(contentWidth, Math.Max(420, pnlNodes.ClientSize.Height - detailsTop - margin));
+                    tabNodeDetails.Anchor = AnchorStyles.Top | AnchorStyles.Left;
+                    bottomContent = tabNodeDetails.Bottom;
+                }
             }
-            else
-            {
-                pnlNodes.AutoScrollMinSize = new Size(contentWidth + (margin * 2), dgvNodes.Bottom + margin);
-            }
+
+            pnlNodes.AutoScrollMinSize = new Size(contentWidth + (margin * 2), bottomContent + margin);
         }
 
         private void ConfigureNodeDetailsControls()
@@ -252,8 +280,16 @@ namespace KubernetesController
             if (pnlNodes.Controls.Contains(txtNodesRawJson))
                 pnlNodes.Controls.Remove(txtNodesRawJson);
 
+            btnToggleNodeDetails = new Button();
+            btnToggleNodeDetails.Name = "btnToggleNodeDetails";
+            btnToggleNodeDetails.Text = "Mais detalhes";
+            btnToggleNodeDetails.UseVisualStyleBackColor = true;
+            btnToggleNodeDetails.Click += new EventHandler(btnToggleNodeDetails_Click);
+            pnlNodes.Controls.Add(btnToggleNodeDetails);
+
             tabNodeDetails = new TabControl();
             tabNodeDetails.Name = "tabNodeDetails";
+            tabNodeDetails.Visible = nodeDetailsVisible;
 
             dgvNodeSummary = CreateNodeDetailsGrid("dgvNodeSummary");
             dgvNodeResources = CreateNodeDetailsGrid("dgvNodeResources");
@@ -354,6 +390,28 @@ namespace KubernetesController
                 chartMemoryByNode,
                 chartImages
             };
+        }
+
+        private void btnToggleNodeDetails_Click(object sender, EventArgs e)
+        {
+            nodeDetailsVisible = !nodeDetailsVisible;
+
+            if (tabNodeDetails != null)
+                tabNodeDetails.Visible = nodeDetailsVisible;
+
+            if (btnToggleNodeDetails != null)
+                btnToggleNodeDetails.Text = nodeDetailsVisible ? "Menos detalhes" : "Mais detalhes";
+
+            ArrangeNodesLayout();
+
+            // Se os detalhes forem fechados enquanto o utilizador está mais abaixo no scroll,
+            // o AutoScroll mantém essa posição antiga e deixa uma área vazia por cima.
+            // Ao esconder os detalhes, voltamos automaticamente ao topo da aba Nodes.
+            if (!nodeDetailsVisible)
+            {
+                ResetNodesScroll();
+                ArrangeNodesLayout();
+            }
         }
 
         private async void DashboardForm_Load(object sender, EventArgs e)
