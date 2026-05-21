@@ -68,6 +68,10 @@ namespace KubernetesController
             txtNodesRawJson.ScrollBars = ScrollBars.Both;
             txtNodesRawJson.WordWrap = false;
 
+            lblTopImageValue.AutoSize = false;
+            lblTopImageValue.AutoEllipsis = false;
+            lblTopImageValue.TextAlign = ContentAlignment.MiddleLeft;
+
             if (!layoutEventsConfigured)
             {
                 layoutEventsConfigured = true;
@@ -130,15 +134,26 @@ namespace KubernetesController
             int cardWidth = (contentWidth - (gap * (cardColumns - 1))) / cardColumns;
 
             int y = 100;
+            int currentRow = 0;
+            int currentColumn = 0;
 
-            for (int i = 0; i < cards.Count; i++)
+            foreach (Panel card in cards)
             {
-                int row = i / cardColumns;
-                int col = i % cardColumns;
+                int cardSpan = GetDashboardCardSpan(card, cardColumns);
 
-                Panel card = cards[i];
-                card.Location = new Point(margin + (col * (cardWidth + gap)), y + (row * (cardHeight + gap)));
-                card.Size = new Size(cardWidth, cardHeight);
+                if (currentColumn + cardSpan > cardColumns)
+                {
+                    currentRow++;
+                    currentColumn = 0;
+                }
+
+                int cardActualWidth = (cardWidth * cardSpan) + (gap * (cardSpan - 1));
+
+                card.Location = new Point(
+                    margin + (currentColumn * (cardWidth + gap)),
+                    y + (currentRow * (cardHeight + gap))
+                );
+                card.Size = new Size(cardActualWidth, cardHeight);
 
                 foreach (Control child in card.Controls)
                 {
@@ -147,11 +162,22 @@ namespace KubernetesController
                         continue;
 
                     if (label.Location.Y >= 30)
-                        label.Size = new Size(Math.Max(40, cardWidth - 20), label.Height);
+                    {
+                        int labelHeight = card == cardTopImage ? 40 : label.Height;
+                        label.Size = new Size(Math.Max(40, cardActualWidth - 20), labelHeight);
+                    }
+                }
+
+                currentColumn += cardSpan;
+
+                if (currentColumn >= cardColumns)
+                {
+                    currentRow++;
+                    currentColumn = 0;
                 }
             }
 
-            int cardRows = (int)Math.Ceiling(cards.Count / (double)cardColumns);
+            int cardRows = currentRow + (currentColumn > 0 ? 1 : 0);
             y = y + (cardRows * (cardHeight + gap)) + 25;
 
             List<Chart> charts = GetDashboardCharts();
@@ -219,6 +245,22 @@ namespace KubernetesController
             };
         }
 
+        private int GetDashboardCardSpan(Panel card, int cardColumns)
+        {
+            if (card == cardTopImage)
+            {
+                if (cardColumns >= 4)
+                    return 3;
+
+                if (cardColumns >= 2)
+                    return 2;
+
+                return 1;
+            }
+
+            return 1;
+        }
+
         private List<Chart> GetDashboardCharts()
         {
             return new List<Chart>
@@ -228,7 +270,9 @@ namespace KubernetesController
                 chartCpuByNode,
                 chartPodStatus,
                 chartDeploymentsByNamespace,
+                chartDeploymentStatus,
                 chartServicesByNamespace,
+                chartKubeletVersions,
                 chartMemoryByNode,
                 chartImages
             };
@@ -283,6 +327,9 @@ namespace KubernetesController
             lblTotalServicesValue.Text = summary.TotalServices.ToString();
             lblTotalIngressesValue.Text = summary.TotalIngresses.ToString();
             lblTopImageValue.Text = summary.TopImage;
+            lblTopImageValue.AutoSize = false;
+            lblTopImageValue.TextAlign = ContentAlignment.MiddleLeft;
+            lblTopImageValue.Text = summary.TopImage;
 
             LoadPieChart(chartNodesStatus, "Estado dos Nodes", summary.NodesStatus);
             LoadColumnChart(chartPodsByNamespace, "Pods por Namespace", summary.PodsByNamespace);
@@ -290,8 +337,15 @@ namespace KubernetesController
             LoadColumnChart(chartMemoryByNode, "Memória por Node (GiB)", summary.MemoryByNode);
             LoadPieChart(chartPodStatus, "Estado dos Pods", summary.PodStatus);
             LoadColumnChart(chartDeploymentsByNamespace, "Deployments por Namespace", summary.DeploymentsByNamespace);
+            ForceIntegerYAxis(chartDeploymentsByNamespace);
+
+            LoadPieChart(chartDeploymentStatus, "Estado dos Deployments", summary.DeploymentStatus);
+
             LoadColumnChart(chartServicesByNamespace, "Services por Namespace", summary.ServicesByNamespace);
             ForceIntegerYAxis(chartServicesByNamespace);
+
+            LoadColumnChart(chartKubeletVersions, "Distribuição das Versões do Kubelet", summary.KubeletVersions);
+            ForceIntegerYAxis(chartKubeletVersions);
             LoadBarChart(chartImages, "Imagens encontradas", summary.ImagesCount, 8);
             ForceIntegerYAxis(chartImages);
         }
@@ -316,22 +370,22 @@ namespace KubernetesController
         private void ConfigureNodesGridHeaders()
         {
             if (dgvNodes.Columns["MemoryGb"] != null)
-                dgvNodes.Columns["MemoryGb"].HeaderText = "MemoryGiB";
+                dgvNodes.Columns["MemoryGb"].HeaderText = "Memória (GiB)";
 
             if (dgvNodes.Columns["InternalIp"] != null)
-                dgvNodes.Columns["InternalIp"].HeaderText = "Internal IP";
+                dgvNodes.Columns["InternalIp"].HeaderText = "IP Interno";
 
             if (dgvNodes.Columns["PodCapacity"] != null)
-                dgvNodes.Columns["PodCapacity"].HeaderText = "Pod Capacity";
+                dgvNodes.Columns["PodCapacity"].HeaderText = "Capacidade de Pods";
 
             if (dgvNodes.Columns["OsImage"] != null)
-                dgvNodes.Columns["OsImage"].HeaderText = "OS Image";
+                dgvNodes.Columns["OsImage"].HeaderText = "Imagem do SO";
 
             if (dgvNodes.Columns["KubeletVersion"] != null)
-                dgvNodes.Columns["KubeletVersion"].HeaderText = "Kubelet Version";
+                dgvNodes.Columns["KubeletVersion"].HeaderText = "Versão do Kubelet";
 
             if (dgvNodes.Columns["ContainerRuntime"] != null)
-                dgvNodes.Columns["ContainerRuntime"].HeaderText = "Container Runtime";
+                dgvNodes.Columns["ContainerRuntime"].HeaderText = "Runtime";
         }
 
         private string FormatJson(string json)

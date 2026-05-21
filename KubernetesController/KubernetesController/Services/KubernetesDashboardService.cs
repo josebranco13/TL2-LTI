@@ -83,6 +83,16 @@ namespace KubernetesController.Services
                     summary.CpuByNode[nodeName] = cpu;
                     summary.MemoryByNode[nodeName] = memoryGiB;
 
+                    if (status.TryGetProperty("nodeInfo", out JsonElement nodeInfo))
+                    {
+                        string kubeletVersion = GetStringValue(nodeInfo, "kubeletVersion");
+
+                        if (string.IsNullOrWhiteSpace(kubeletVersion))
+                            kubeletVersion = "N/A";
+
+                        AddCount(summary.KubeletVersions, kubeletVersion);
+                    }
+
                     if (IsControlPlane(metadata))
                         summary.MasterIp = GetInternalIp(status);
 
@@ -155,13 +165,49 @@ namespace KubernetesController.Services
                     AddCount(summary.DeploymentsByNamespace, ns);
 
                     int availableReplicas = 0;
-                    if (deployment.TryGetProperty("status", out JsonElement status))
+                    JsonElement status;
+
+                    if (deployment.TryGetProperty("status", out status))
                         availableReplicas = GetIntValue(status, "availableReplicas");
 
                     if (availableReplicas > 0)
                         summary.ActiveDeployments++;
+
+                    AddCount(summary.DeploymentStatus, GetDeploymentStatus(deployment));
                 }
             }
+        }
+
+        private string GetDeploymentStatus(JsonElement deployment)
+        {
+            int desiredReplicas = 1;
+            int availableReplicas = 0;
+            int readyReplicas = 0;
+            int unavailableReplicas = 0;
+
+            if (deployment.TryGetProperty("spec", out JsonElement spec))
+                desiredReplicas = GetIntValue(spec, "replicas");
+
+            if (deployment.TryGetProperty("status", out JsonElement status))
+            {
+                availableReplicas = GetIntValue(status, "availableReplicas");
+                readyReplicas = GetIntValue(status, "readyReplicas");
+                unavailableReplicas = GetIntValue(status, "unavailableReplicas");
+            }
+
+            if (desiredReplicas == 0)
+                return "Escalado a 0";
+
+            if (availableReplicas >= desiredReplicas && readyReplicas >= desiredReplicas)
+                return "Disponível";
+
+            if (availableReplicas > 0 || readyReplicas > 0)
+                return "Parcial";
+
+            if (unavailableReplicas > 0)
+                return "Indisponível";
+
+            return "Sem réplicas disponíveis";
         }
 
         private void ParseServices(string json, KubernetesDashboardSummary summary)

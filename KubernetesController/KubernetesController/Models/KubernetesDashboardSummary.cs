@@ -27,8 +27,10 @@ namespace KubernetesController.Models
         public Dictionary<string, double> MemoryByNode { get; set; }
         public Dictionary<string, int> PodStatus { get; set; }
         public Dictionary<string, int> DeploymentsByNamespace { get; set; }
+        public Dictionary<string, int> DeploymentStatus { get; set; }
         public Dictionary<string, int> ServicesByNamespace { get; set; }
         public Dictionary<string, int> ImagesCount { get; set; }
+        public Dictionary<string, int> KubeletVersions { get; set; }
 
         public KubernetesDashboardSummary()
         {
@@ -41,8 +43,10 @@ namespace KubernetesController.Models
             MemoryByNode = new Dictionary<string, double>();
             PodStatus = new Dictionary<string, int>();
             DeploymentsByNamespace = new Dictionary<string, int>();
+            DeploymentStatus = new Dictionary<string, int>();
             ServicesByNamespace = new Dictionary<string, int>();
             ImagesCount = new Dictionary<string, int>();
+            KubeletVersions = new Dictionary<string, int>();
         }
     }
 }

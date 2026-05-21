@@ -73,7 +73,9 @@ namespace KubernetesController
             this.chartCpuByNode = new System.Windows.Forms.DataVisualization.Charting.Chart();
             this.chartPodStatus = new System.Windows.Forms.DataVisualization.Charting.Chart();
             this.chartDeploymentsByNamespace = new System.Windows.Forms.DataVisualization.Charting.Chart();
+            this.chartDeploymentStatus = new System.Windows.Forms.DataVisualization.Charting.Chart();
             this.chartServicesByNamespace = new System.Windows.Forms.DataVisualization.Charting.Chart();
+            this.chartKubeletVersions = new System.Windows.Forms.DataVisualization.Charting.Chart();
             this.chartMemoryByNode = new System.Windows.Forms.DataVisualization.Charting.Chart();
             this.chartImages = new System.Windows.Forms.DataVisualization.Charting.Chart();
             this.tabNodes = new System.Windows.Forms.TabPage();
@@ -108,7 +110,9 @@ namespace KubernetesController
             ((System.ComponentModel.ISupportInitialize)(this.chartCpuByNode)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.chartPodStatus)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.chartDeploymentsByNamespace)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.chartDeploymentStatus)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.chartServicesByNamespace)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.chartKubeletVersions)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.chartMemoryByNode)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.chartImages)).BeginInit();
             this.tabNodes.SuspendLayout();
@@ -169,7 +173,9 @@ namespace KubernetesController
             this.pnlDashboard.Controls.Add(this.chartCpuByNode);
             this.pnlDashboard.Controls.Add(this.chartPodStatus);
             this.pnlDashboard.Controls.Add(this.chartDeploymentsByNamespace);
+            this.pnlDashboard.Controls.Add(this.chartDeploymentStatus);
             this.pnlDashboard.Controls.Add(this.chartServicesByNamespace);
+            this.pnlDashboard.Controls.Add(this.chartKubeletVersions);
             this.pnlDashboard.Controls.Add(this.chartMemoryByNode);
             this.pnlDashboard.Controls.Add(this.chartImages);
             this.pnlDashboard.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -232,9 +238,11 @@ namespace KubernetesController
             this.ConfigureChartBox(this.chartCpuByNode, 30, 770, 600, 320);
             this.ConfigureChartBox(this.chartPodStatus, 660, 770, 600, 320);
             this.ConfigureChartBox(this.chartDeploymentsByNamespace, 30, 1120, 600, 320);
-            this.ConfigureChartBox(this.chartServicesByNamespace, 660, 1120, 600, 320);
-            this.ConfigureChartBox(this.chartMemoryByNode, 30, 1470, 600, 320);
-            this.ConfigureChartBox(this.chartImages, 660, 1470, 600, 320);
+            this.ConfigureChartBox(this.chartDeploymentStatus, 660, 1120, 600, 320);
+            this.ConfigureChartBox(this.chartServicesByNamespace, 30, 1470, 600, 320);
+            this.ConfigureChartBox(this.chartKubeletVersions, 660, 1470, 600, 320);
+            this.ConfigureChartBox(this.chartMemoryByNode, 30, 1820, 600, 320);
+            this.ConfigureChartBox(this.chartImages, 660, 1820, 600, 320);
             // 
             // tabNodes
             // 
@@ -350,7 +358,9 @@ namespace KubernetesController
             ((System.ComponentModel.ISupportInitialize)(this.chartCpuByNode)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.chartPodStatus)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.chartDeploymentsByNamespace)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.chartDeploymentStatus)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.chartServicesByNamespace)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.chartKubeletVersions)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.chartMemoryByNode)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.chartImages)).EndInit();
             this.tabNodes.ResumeLayout(false);
@@ -478,7 +488,9 @@ namespace KubernetesController
         private System.Windows.Forms.DataVisualization.Charting.Chart chartCpuByNode;
         private System.Windows.Forms.DataVisualization.Charting.Chart chartPodStatus;
         private System.Windows.Forms.DataVisualization.Charting.Chart chartDeploymentsByNamespace;
+        private System.Windows.Forms.DataVisualization.Charting.Chart chartDeploymentStatus;
         private System.Windows.Forms.DataVisualization.Charting.Chart chartServicesByNamespace;
+        private System.Windows.Forms.DataVisualization.Charting.Chart chartKubeletVersions;
         private System.Windows.Forms.DataVisualization.Charting.Chart chartMemoryByNode;
         private System.Windows.Forms.DataVisualization.Charting.Chart chartImages;
 
