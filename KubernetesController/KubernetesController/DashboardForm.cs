@@ -1,4 +1,4 @@
-using KubernetesController.Models;
+﻿using KubernetesController.Models;
 using KubernetesController.Services;
 using System;
 using System.Collections.Generic;
@@ -20,6 +20,7 @@ namespace KubernetesController
         private KubernetesApiClient api;
         private KubernetesNodesService nodesService;
         private KubernetesDashboardService dashboardService;
+        private KubernetesNamespacesService namespacesService;
         private bool layoutEventsConfigured;
 
         private List<KubernetesNodeDetails> nodeDetails = new List<KubernetesNodeDetails>();
@@ -35,6 +36,18 @@ namespace KubernetesController
         private DataGridView dgvNodeAnnotations;
         private DataGridView dgvNodeTaints;
         private DataGridView dgvNodeImages;
+
+        private List<KubernetesNamespaceDetails> namespaceDetails = new List<KubernetesNamespaceDetails>();
+        private Panel pnlNamespacesContent;
+        private Button btnRefreshNamespaces;
+        private Button btnCreateNamespace;
+        private Button btnDeleteNamespace;
+        private DataGridView dgvNamespaces;
+        private TabControl tabNamespaceDetails;
+        private DataGridView dgvNamespaceSummary;
+        private DataGridView dgvNamespaceLabels;
+        private DataGridView dgvNamespaceFinalizers;
+        private DataGridView dgvNamespaceManagedFields;
 
         // Construtor vazio necessário para o Designer do Visual Studio
         public DashboardForm()
@@ -54,6 +67,7 @@ namespace KubernetesController
             this.api = new KubernetesApiClient(baseUrl, token);
             this.nodesService = new KubernetesNodesService(this.api);
             this.dashboardService = new KubernetesDashboardService(this.api);
+            this.namespacesService = new KubernetesNamespacesService(this.api);
 
             this.StartPosition = FormStartPosition.CenterScreen;
             this.WindowState = FormWindowState.Maximized;
@@ -81,6 +95,7 @@ namespace KubernetesController
             txtNodesRawJson.Visible = false;
 
             ConfigureNodeDetailsControls();
+            ConfigureNamespaceTabControls();
 
             lblTopImageValue.AutoSize = false;
             lblTopImageValue.AutoEllipsis = false;
@@ -92,22 +107,27 @@ namespace KubernetesController
                 this.Resize += DashboardForm_Resize;
                 tabKubernetesController.SelectedIndexChanged += TabKubernetesController_SelectedIndexChanged;
                 dgvNodes.SelectionChanged += dgvNodes_SelectionChanged;
+                if (dgvNamespaces != null)
+                    dgvNamespaces.SelectionChanged += dgvNamespaces_SelectionChanged;
             }
 
             ArrangeDashboardLayout();
             ArrangeNodesLayout();
+            ArrangeNamespacesLayout();
         }
 
         private void DashboardForm_Resize(object sender, EventArgs e)
         {
             ArrangeDashboardLayout();
             ArrangeNodesLayout();
+            ArrangeNamespacesLayout();
         }
 
         private void TabKubernetesController_SelectedIndexChanged(object sender, EventArgs e)
         {
             ArrangeDashboardLayout();
             ArrangeNodesLayout();
+            ArrangeNamespacesLayout();
         }
 
         private void ResetDashboardScroll()
@@ -272,6 +292,118 @@ namespace KubernetesController
             pnlNodes.AutoScrollMinSize = new Size(contentWidth + (margin * 2), bottomContent + margin);
         }
 
+
+        private void ConfigureNamespaceTabControls()
+        {
+            if (pnlNamespacesContent != null)
+                return;
+
+            tabNamespaces.Controls.Clear();
+
+            pnlNamespacesContent = new Panel();
+            pnlNamespacesContent.Name = "pnlNamespacesContent";
+            pnlNamespacesContent.Dock = DockStyle.Fill;
+            pnlNamespacesContent.AutoScroll = true;
+            tabNamespaces.Controls.Add(pnlNamespacesContent);
+
+            btnRefreshNamespaces = new Button();
+            btnRefreshNamespaces.Name = "btnRefreshNamespaces";
+            btnRefreshNamespaces.Text = "Atualizar Namespaces";
+            btnRefreshNamespaces.UseVisualStyleBackColor = true;
+            btnRefreshNamespaces.Click += new EventHandler(btnRefreshNamespaces_Click);
+            pnlNamespacesContent.Controls.Add(btnRefreshNamespaces);
+
+            btnCreateNamespace = new Button();
+            btnCreateNamespace.Name = "btnCreateNamespace";
+            btnCreateNamespace.Text = "Criar";
+            btnCreateNamespace.UseVisualStyleBackColor = true;
+            btnCreateNamespace.Click += new EventHandler(btnCreateNamespace_Click);
+            pnlNamespacesContent.Controls.Add(btnCreateNamespace);
+
+            btnDeleteNamespace = new Button();
+            btnDeleteNamespace.Name = "btnDeleteNamespace";
+            btnDeleteNamespace.Text = "Eliminar";
+            btnDeleteNamespace.UseVisualStyleBackColor = true;
+            btnDeleteNamespace.Click += new EventHandler(btnDeleteNamespace_Click);
+            pnlNamespacesContent.Controls.Add(btnDeleteNamespace);
+
+            dgvNamespaces = new DataGridView();
+            dgvNamespaces.Name = "dgvNamespaces";
+            dgvNamespaces.ReadOnly = true;
+            dgvNamespaces.AllowUserToAddRows = false;
+            dgvNamespaces.AllowUserToDeleteRows = false;
+            dgvNamespaces.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            dgvNamespaces.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            dgvNamespaces.ScrollBars = ScrollBars.Both;
+            dgvNamespaces.RowHeadersVisible = false;
+            pnlNamespacesContent.Controls.Add(dgvNamespaces);
+
+            tabNamespaceDetails = new TabControl();
+            tabNamespaceDetails.Name = "tabNamespaceDetails";
+
+            dgvNamespaceSummary = CreateDetailsGrid("dgvNamespaceSummary");
+            dgvNamespaceLabels = CreateDetailsGrid("dgvNamespaceLabels");
+            dgvNamespaceFinalizers = CreateDetailsGrid("dgvNamespaceFinalizers");
+            dgvNamespaceManagedFields = CreateDetailsGrid("dgvNamespaceManagedFields");
+
+            AddDetailsTab(tabNamespaceDetails, "Resumo", dgvNamespaceSummary);
+            AddDetailsTab(tabNamespaceDetails, "Labels", dgvNamespaceLabels);
+            AddDetailsTab(tabNamespaceDetails, "Finalizers", dgvNamespaceFinalizers);
+            AddDetailsTab(tabNamespaceDetails, "Managed Fields", dgvNamespaceManagedFields);
+
+            pnlNamespacesContent.Controls.Add(tabNamespaceDetails);
+        }
+
+        private DataGridView CreateDetailsGrid(string name)
+        {
+            DataGridView grid = new DataGridView();
+            grid.Name = name;
+            grid.Dock = DockStyle.Fill;
+            grid.ReadOnly = true;
+            grid.AllowUserToAddRows = false;
+            grid.AllowUserToDeleteRows = false;
+            grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+            grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+            grid.ScrollBars = ScrollBars.Both;
+            grid.RowHeadersVisible = false;
+            return grid;
+        }
+
+        private void AddDetailsTab(TabControl tabControl, string title, DataGridView grid)
+        {
+            TabPage page = new TabPage();
+            page.Text = title;
+            page.Controls.Add(grid);
+            tabControl.TabPages.Add(page);
+        }
+
+        private void ArrangeNamespacesLayout()
+        {
+            if (pnlNamespacesContent == null)
+                return;
+
+            int margin = 24;
+            int gap = 14;
+            int contentWidth = Math.Max(780, pnlNamespacesContent.ClientSize.Width - SystemInformation.VerticalScrollBarWidth - (margin * 2));
+
+            btnRefreshNamespaces.Location = new Point(margin, 20);
+            btnRefreshNamespaces.Size = new Size(190, 35);
+
+            btnCreateNamespace.Location = new Point(margin + contentWidth - 360, 20);
+            btnCreateNamespace.Size = new Size(170, 35);
+
+            btnDeleteNamespace.Location = new Point(margin + contentWidth - 170, 20);
+            btnDeleteNamespace.Size = new Size(170, 35);
+
+            dgvNamespaces.Location = new Point(margin, 70);
+            dgvNamespaces.Size = new Size(contentWidth, 250);
+
+            tabNamespaceDetails.Location = new Point(margin, dgvNamespaces.Bottom + gap);
+            tabNamespaceDetails.Size = new Size(contentWidth, Math.Max(360, pnlNamespacesContent.ClientSize.Height - tabNamespaceDetails.Top - margin));
+
+            pnlNamespacesContent.AutoScrollMinSize = new Size(contentWidth + (margin * 2), tabNamespaceDetails.Bottom + margin);
+        }
+
         private void ConfigureNodeDetailsControls()
         {
             if (tabNodeDetails != null)
@@ -431,6 +563,9 @@ namespace KubernetesController
 
                 await LoadNodesTabAsync();
                 ArrangeNodesLayout();
+
+                await LoadNamespacesTabAsync();
+                ArrangeNamespacesLayout();
             }
             catch (Exception ex)
             {
@@ -484,6 +619,115 @@ namespace KubernetesController
             ForceIntegerYAxis(chartKubeletVersions);
             LoadBarChart(chartImages, "Imagens encontradas", summary.ImagesCount, 8);
             ForceIntegerYAxis(chartImages);
+        }
+
+
+        private async Task LoadNamespacesTabAsync()
+        {
+            if (namespacesService == null)
+                return;
+
+            List<KubernetesNamespaceSummary> namespaces = await namespacesService.GetNamespacesAsync();
+            namespaceDetails = await namespacesService.GetNamespaceDetailsAsync();
+
+            dgvNamespaces.DataSource = null;
+            dgvNamespaces.DataSource = namespaces;
+            ConfigureNamespacesGridHeaders();
+
+            if (dgvNamespaces.Rows.Count > 0)
+                dgvNamespaces.Rows[0].Selected = true;
+
+            if (namespaceDetails.Count > 0)
+                ShowNamespaceDetails(namespaceDetails[0]);
+            else
+                ClearNamespaceDetails();
+
+            ArrangeNamespacesLayout();
+        }
+
+        private void ConfigureNamespacesGridHeaders()
+        {
+            if (dgvNamespaces.Columns["Name"] != null)
+                dgvNamespaces.Columns["Name"].HeaderText = "Nome";
+
+            if (dgvNamespaces.Columns["Phase"] != null)
+                dgvNamespaces.Columns["Phase"].HeaderText = "Estado";
+
+            if (dgvNamespaces.Columns["CreationTimestamp"] != null)
+                dgvNamespaces.Columns["CreationTimestamp"].HeaderText = "Criado em";
+
+            if (dgvNamespaces.Columns["ResourceVersion"] != null)
+                dgvNamespaces.Columns["ResourceVersion"].HeaderText = "Resource Version";
+
+            if (dgvNamespaces.Columns["Uid"] != null)
+                dgvNamespaces.Columns["Uid"].HeaderText = "UID";
+
+            if (dgvNamespaces.Columns["LabelsCount"] != null)
+                dgvNamespaces.Columns["LabelsCount"].HeaderText = "Labels";
+
+            if (dgvNamespaces.Columns["Finalizers"] != null)
+                dgvNamespaces.Columns["Finalizers"].HeaderText = "Finalizers";
+
+            if (dgvNamespaces.Columns["ManagedBy"] != null)
+                dgvNamespaces.Columns["ManagedBy"].HeaderText = "Gerido por";
+        }
+
+        private void dgvNamespaces_SelectionChanged(object sender, EventArgs e)
+        {
+            if (dgvNamespaces == null || dgvNamespaces.CurrentRow == null || dgvNamespaces.CurrentRow.DataBoundItem == null)
+                return;
+
+            KubernetesNamespaceSummary selectedNamespace = dgvNamespaces.CurrentRow.DataBoundItem as KubernetesNamespaceSummary;
+            if (selectedNamespace == null || namespaceDetails == null)
+                return;
+
+            KubernetesNamespaceDetails selectedDetails = namespaceDetails.FirstOrDefault(n => n.Name == selectedNamespace.Name);
+            if (selectedDetails != null)
+                ShowNamespaceDetails(selectedDetails);
+        }
+
+        private void ShowNamespaceDetails(KubernetesNamespaceDetails ns)
+        {
+            if (ns == null)
+            {
+                ClearNamespaceDetails();
+                return;
+            }
+
+            dgvNamespaceSummary.DataSource = ToTable(new Dictionary<string, string>
+            {
+                { "Nome", ns.Name },
+                { "Estado", ns.Phase },
+                { "UID", ns.Uid },
+                { "Criado em", ns.CreationTimestamp },
+                { "Resource Version", ns.ResourceVersion },
+                { "Finalizers", ns.FinalizersText },
+                { "Gerido por", ns.ManagedBy }
+            });
+
+            dgvNamespaceLabels.DataSource = null;
+            dgvNamespaceLabels.DataSource = ns.Labels;
+
+            dgvNamespaceFinalizers.DataSource = null;
+            dgvNamespaceFinalizers.DataSource = ns.Finalizers;
+
+            dgvNamespaceManagedFields.DataSource = null;
+            dgvNamespaceManagedFields.DataSource = ns.ManagedFields;
+        }
+
+        private void ClearNamespaceDetails()
+        {
+            if (dgvNamespaceSummary != null)
+                dgvNamespaceSummary.DataSource = null;
+
+            if (dgvNamespaceLabels != null)
+                dgvNamespaceLabels.DataSource = null;
+
+            if (dgvNamespaceFinalizers != null)
+                dgvNamespaceFinalizers.DataSource = null;
+
+            if (dgvNamespaceManagedFields != null)
+                dgvNamespaceManagedFields.DataSource = null;
         }
 
         private async Task LoadNodesTabAsync()
@@ -788,6 +1032,105 @@ namespace KubernetesController
                 return value;
 
             return value.Substring(0, maxLength - 3) + "...";
+        }
+
+
+        private async void btnRefreshNamespaces_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                btnRefreshNamespaces.Enabled = false;
+                await LoadNamespacesTabAsync();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    "Erro ao atualizar namespaces.\n\n" + ex.Message,
+                    "Erro",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error
+                );
+            }
+            finally
+            {
+                btnRefreshNamespaces.Enabled = true;
+            }
+        }
+
+        private async void btnCreateNamespace_Click(object sender, EventArgs e)
+        {
+            if (namespacesService == null)
+                return;
+
+            using (CreateNamespaceForm form = new CreateNamespaceForm())
+            {
+                if (form.ShowDialog(this) != DialogResult.OK)
+                    return;
+
+                try
+                {
+                    btnCreateNamespace.Enabled = false;
+                    await namespacesService.CreateNamespaceAsync(form.NamespaceName, form.LabelsText);
+                    MessageBox.Show("Namespace criado com sucesso.", "Sucesso", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    await LoadNamespacesTabAsync();
+                    await LoadDashboardAsync();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(
+                        "Erro ao criar namespace.\n\n" + ex.Message,
+                        "Erro",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error
+                    );
+                }
+                finally
+                {
+                    btnCreateNamespace.Enabled = true;
+                }
+            }
+        }
+
+        private async void btnDeleteNamespace_Click(object sender, EventArgs e)
+        {
+            if (namespacesService == null || dgvNamespaces == null || dgvNamespaces.CurrentRow == null)
+                return;
+
+            KubernetesNamespaceSummary selectedNamespace = dgvNamespaces.CurrentRow.DataBoundItem as KubernetesNamespaceSummary;
+            if (selectedNamespace == null)
+                return;
+
+            DialogResult confirm = MessageBox.Show(
+                "Tem a certeza que pretende eliminar o namespace '" + selectedNamespace.Name + "'?",
+                "Confirmar eliminação",
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning
+            );
+
+            if (confirm != DialogResult.Yes)
+                return;
+
+            try
+            {
+                btnDeleteNamespace.Enabled = false;
+                await namespacesService.DeleteNamespaceAsync(selectedNamespace.Name);
+                MessageBox.Show("Pedido de eliminação enviado com sucesso.", "Sucesso", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                await LoadNamespacesTabAsync();
+                await LoadDashboardAsync();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    "Erro ao eliminar namespace.\n\n" + ex.Message,
+                    "Erro",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error
+                );
+            }
+            finally
+            {
+                btnDeleteNamespace.Enabled = true;
+            }
         }
 
         private async void btnRefreshDashboard_Click(object sender, EventArgs e)

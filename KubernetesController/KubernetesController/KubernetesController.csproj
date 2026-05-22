@@ -85,6 +85,9 @@
     <Compile Include="DashboardForm.Designer.cs">
       <DependentUpon>DashboardForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="CreateNamespaceForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="Form1.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -94,6 +97,8 @@
     <Compile Include="Models\KubernetesNodeSummary.cs" />
     <Compile Include="Models\KubernetesNodeDetails.cs" />
     <Compile Include="Models\KubernetesDashboardSummary.cs" />
+    <Compile Include="Models\KubernetesNamespaceSummary.cs" />
+    <Compile Include="Models\KubernetesNamespaceDetails.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Properties\Settings.Designer.cs">
@@ -103,6 +108,7 @@
     </Compile>
     <Compile Include="Services\KubernetesApiClient.cs" />
     <Compile Include="Services\KubernetesDashboardService.cs" />
+    <Compile Include="Services\KubernetesNamespacesService.cs" />
     <Compile Include="Services\KubernetesNodesService.cs" />
     <EmbeddedResource Include="DashboardForm.resx">
       <DependentUpon>DashboardForm.cs</DependentUpon>

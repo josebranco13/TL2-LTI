@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+using System;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
@@ -38,7 +36,7 @@ namespace KubernetesController.Services
             string content = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
-                throw new Exception($"Erro GET {endpoint}: {response.StatusCode}\n{content}");
+                throw new Exception("Erro GET " + endpoint + ": " + response.StatusCode + "\n" + content);
 
             return content;
         }
@@ -51,20 +49,33 @@ namespace KubernetesController.Services
             string responseContent = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
-                throw new Exception($"Erro POST {endpoint}: {response.StatusCode}\n{responseContent}");
+                throw new Exception("Erro POST " + endpoint + ": " + response.StatusCode + "\n" + responseContent);
 
             return responseContent;
         }
 
         public async Task<string> DeleteAsync(string endpoint)
         {
-            HttpResponseMessage response = await _httpClient.DeleteAsync(endpoint.TrimStart('/'));
-            string content = await response.Content.ReadAsStringAsync();
+            for (int attempt = 1; attempt <= 5; attempt++)
+            {
+                HttpResponseMessage response = await _httpClient.DeleteAsync(endpoint.TrimStart('/'));
+                string content = await response.Content.ReadAsStringAsync();
 
-            if (!response.IsSuccessStatusCode)
-                throw new Exception($"Erro DELETE {endpoint}: {response.StatusCode}\n{content}");
+                if (response.IsSuccessStatusCode)
+                    return content;
 
-            return content;
+                if ((int)response.StatusCode == 503 && attempt < 5)
+                {
+                    await Task.Delay(2000);
+                    continue;
+                }
+
+                throw new Exception(
+                    $"Erro DELETE {endpoint}: {response.StatusCode}\n{content}"
+                );
+            }
+
+            throw new Exception("Erro inesperado ao executar DELETE.");
         }
     }
 }
