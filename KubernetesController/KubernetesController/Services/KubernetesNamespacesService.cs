@@ -1,7 +1,6 @@
 using KubernetesController.Models;
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 
@@ -23,31 +22,23 @@ namespace KubernetesController.Services
 
             using (JsonDocument doc = JsonDocument.Parse(json))
             {
-                JsonElement items = doc.RootElement.GetProperty("items");
+                if (!doc.RootElement.TryGetProperty("items", out JsonElement items))
+                    return namespaces;
 
                 foreach (JsonElement ns in items.EnumerateArray())
                 {
-                    JsonElement metadata = ns.GetProperty("metadata");
-                    JsonElement status = ns.GetProperty("status");
-
-                    int labelsCount = 0;
-                    if (metadata.TryGetProperty("labels", out JsonElement labels))
-                        labelsCount = CountProperties(labels);
-
-                    string finalizers = "";
-                    if (ns.TryGetProperty("spec", out JsonElement spec))
-                        finalizers = GetArrayAsText(spec, "finalizers");
+                    KubernetesNamespaceDetails details = ParseNamespaceDetails(ns);
 
                     namespaces.Add(new KubernetesNamespaceSummary
                     {
-                        Name = GetStringValue(metadata, "name"),
-                        Phase = GetStringValue(status, "phase"),
-                        CreationTimestamp = GetStringValue(metadata, "creationTimestamp"),
-                        ResourceVersion = GetStringValue(metadata, "resourceVersion"),
-                        Uid = GetStringValue(metadata, "uid"),
-                        LabelsCount = labelsCount,
-                        Finalizers = finalizers,
-                        ManagedBy = GetManagedBy(metadata)
+                        Name = details.Name,
+                        Status = details.Phase,
+                        CreatedAt = details.CreationTimestamp,
+                        ResourceVersion = details.ResourceVersion,
+                        Uid = details.Uid,
+                        Labels = details.Labels.Count,
+                        Finalizers = details.FinalizersText,
+                        ManagedBy = details.ManagedBy
                     });
                 }
             }
@@ -58,211 +49,188 @@ namespace KubernetesController.Services
         public async Task<List<KubernetesNamespaceDetails>> GetNamespaceDetailsAsync()
         {
             string json = await api.GetAsync("/api/v1/namespaces");
-            List<KubernetesNamespaceDetails> result = new List<KubernetesNamespaceDetails>();
+            List<KubernetesNamespaceDetails> namespaces = new List<KubernetesNamespaceDetails>();
 
             using (JsonDocument doc = JsonDocument.Parse(json))
             {
-                JsonElement items = doc.RootElement.GetProperty("items");
+                if (!doc.RootElement.TryGetProperty("items", out JsonElement items))
+                    return namespaces;
 
                 foreach (JsonElement ns in items.EnumerateArray())
-                {
-                    JsonElement metadata = ns.GetProperty("metadata");
-                    JsonElement status = ns.GetProperty("status");
-
-                    string finalizersText = "";
-                    if (ns.TryGetProperty("spec", out JsonElement spec))
-                        finalizersText = GetArrayAsText(spec, "finalizers");
-
-                    KubernetesNamespaceDetails details = new KubernetesNamespaceDetails
-                    {
-                        Name = GetStringValue(metadata, "name"),
-                        Phase = GetStringValue(status, "phase"),
-                        Uid = GetStringValue(metadata, "uid"),
-                        CreationTimestamp = GetStringValue(metadata, "creationTimestamp"),
-                        ResourceVersion = GetStringValue(metadata, "resourceVersion"),
-                        FinalizersText = finalizersText,
-                        ManagedBy = GetManagedBy(metadata),
-                        Labels = GetLabels(metadata),
-                        Finalizers = GetFinalizers(ns),
-                        ManagedFields = GetManagedFields(metadata)
-                    };
-
-                    result.Add(details);
-                }
+                    namespaces.Add(ParseNamespaceDetails(ns));
             }
 
-            return result;
+            return namespaces;
         }
 
         public async Task CreateNamespaceAsync(string name, string labelsText)
         {
             if (string.IsNullOrWhiteSpace(name))
-                throw new Exception("Indica o nome do namespace.");
+                throw new ArgumentException("O nome do namespace não pode estar vazio.");
 
-            string safeName = name.Trim();
-            string labelsJson = BuildLabelsJson(labelsText);
+            Dictionary<string, object> metadata = new Dictionary<string, object>();
+            metadata["name"] = name.Trim();
 
-            string json = @"
-{
-  ""apiVersion"": ""v1"",
-  ""kind"": ""Namespace"",
-  ""metadata"": {
-    ""name"": """ + safeName + @"""" + labelsJson + @"
-  }
-}";
+            Dictionary<string, string> labels = ParseLabels(labelsText);
+            if (labels.Count > 0)
+                metadata["labels"] = labels;
 
+            Dictionary<string, object> body = new Dictionary<string, object>();
+            body["apiVersion"] = "v1";
+            body["kind"] = "Namespace";
+            body["metadata"] = metadata;
+
+            string json = JsonSerializer.Serialize(body);
             await api.PostAsync("/api/v1/namespaces", json);
         }
 
         public async Task DeleteNamespaceAsync(string name)
         {
             if (string.IsNullOrWhiteSpace(name))
-                throw new Exception("Seleciona um namespace para eliminar.");
+                throw new ArgumentException("Seleciona um namespace válido.");
 
-            string safeName = Uri.EscapeDataString(name);
-            await api.DeleteAsync("/api/v1/namespaces/" + safeName);
+            string cleanName = name.Trim();
+            string encodedName = Uri.EscapeDataString(cleanName);
+
+            await api.DeleteAsync("/api/v1/namespaces/" + encodedName);
+
+            // O K3s pode demorar alguns segundos a finalizar o namespace e, por vezes,
+            // responde temporariamente com 503 "starting" logo após o DELETE.
+            await Task.Delay(2000);
         }
 
-        private string BuildLabelsJson(string labelsText)
+        private KubernetesNamespaceDetails ParseNamespaceDetails(JsonElement ns)
         {
-            if (string.IsNullOrWhiteSpace(labelsText))
-                return "";
+            KubernetesNamespaceDetails details = new KubernetesNamespaceDetails();
 
-            StringBuilder sb = new StringBuilder();
-            sb.Append(", \"labels\": {");
+            JsonElement metadata;
+            if (ns.TryGetProperty("metadata", out metadata))
+            {
+                details.Name = GetStringValue(metadata, "name");
+                details.Uid = GetStringValue(metadata, "uid");
+                details.ResourceVersion = GetStringValue(metadata, "resourceVersion");
+                details.CreationTimestamp = GetStringValue(metadata, "creationTimestamp");
+                details.ManagedBy = GetManagedBy(metadata);
+                details.Labels = GetKeyValueList(metadata, "labels");
+                details.ManagedFields = GetManagedFields(metadata);
+            }
+
+            JsonElement status;
+            if (ns.TryGetProperty("status", out status))
+                details.Phase = GetStringValue(status, "phase");
+
+            JsonElement spec;
+            if (ns.TryGetProperty("spec", out spec))
+            {
+                details.Finalizers = GetFinalizers(spec);
+                details.FinalizersText = GetFinalizersText(details.Finalizers);
+            }
+
+            return details;
+        }
+
+        private Dictionary<string, string> ParseLabels(string labelsText)
+        {
+            Dictionary<string, string> labels = new Dictionary<string, string>();
+
+            if (string.IsNullOrWhiteSpace(labelsText))
+                return labels;
 
             string[] pairs = labelsText.Split(',');
-            bool first = true;
 
-            for (int i = 0; i < pairs.Length; i++)
+            foreach (string pair in pairs)
             {
-                string[] parts = pairs[i].Split('=');
-
-                if (parts.Length != 2)
+                if (string.IsNullOrWhiteSpace(pair))
                     continue;
+
+                string[] parts = pair.Split(new char[] { '=' }, 2);
+                if (parts.Length != 2)
+                    throw new ArgumentException("As labels devem estar no formato chave=valor, exemplo: ambiente=teste,app=web");
 
                 string key = parts[0].Trim();
                 string value = parts[1].Trim();
 
-                if (key == "" || value == "")
-                    continue;
+                if (string.IsNullOrWhiteSpace(key))
+                    throw new ArgumentException("Existe uma label sem chave.");
 
-                if (!first)
-                    sb.Append(",");
-
-                sb.Append("\"" + EscapeJson(key) + "\": \"" + EscapeJson(value) + "\"");
-                first = false;
+                labels[key] = value;
             }
 
-            sb.Append("}");
-
-            if (first)
-                return "";
-
-            return sb.ToString();
-        }
-
-        private string EscapeJson(string value)
-        {
-            return value.Replace("\\", "\\\\").Replace("\"", "\\\"");
+            return labels;
         }
 
         private string GetStringValue(JsonElement element, string propertyName)
         {
-            if (!element.TryGetProperty(propertyName, out JsonElement property))
+            JsonElement property;
+            if (!element.TryGetProperty(propertyName, out property))
                 return "";
 
-            return property.GetString() ?? "";
+            if (property.ValueKind == JsonValueKind.String)
+                return property.GetString() ?? "";
+
+            return property.ToString();
         }
 
-        private int CountProperties(JsonElement element)
+        private List<KubernetesKeyValue> GetKeyValueList(JsonElement element, string propertyName)
         {
-            int count = 0;
+            List<KubernetesKeyValue> values = new List<KubernetesKeyValue>();
 
-            foreach (JsonProperty property in element.EnumerateObject())
-                count++;
+            JsonElement obj;
+            if (!element.TryGetProperty(propertyName, out obj) || obj.ValueKind != JsonValueKind.Object)
+                return values;
 
-            return count;
+            foreach (JsonProperty property in obj.EnumerateObject())
+            {
+                values.Add(new KubernetesKeyValue
+                {
+                    Chave = property.Name,
+                    Valor = property.Value.ValueKind == JsonValueKind.String ? property.Value.GetString() ?? "" : property.Value.ToString()
+                });
+            }
+
+            return values;
         }
 
-        private string GetArrayAsText(JsonElement element, string propertyName)
+        private List<KubernetesNamespaceFinalizer> GetFinalizers(JsonElement spec)
         {
-            if (!element.TryGetProperty(propertyName, out JsonElement array))
-                return "";
+            List<KubernetesNamespaceFinalizer> finalizers = new List<KubernetesNamespaceFinalizer>();
 
-            List<string> values = new List<string>();
+            JsonElement array;
+            if (!spec.TryGetProperty("finalizers", out array) || array.ValueKind != JsonValueKind.Array)
+                return finalizers;
 
             foreach (JsonElement item in array.EnumerateArray())
-                values.Add(item.GetString() ?? "");
+            {
+                finalizers.Add(new KubernetesNamespaceFinalizer
+                {
+                    Nome = item.ValueKind == JsonValueKind.String ? item.GetString() ?? "" : item.ToString()
+                });
+            }
+
+            return finalizers;
+        }
+
+        private string GetFinalizersText(List<KubernetesNamespaceFinalizer> finalizers)
+        {
+            List<string> values = new List<string>();
+
+            foreach (KubernetesNamespaceFinalizer finalizer in finalizers)
+                values.Add(finalizer.Nome);
 
             return string.Join(", ", values);
         }
 
-        private string GetManagedBy(JsonElement metadata)
-        {
-            if (!metadata.TryGetProperty("managedFields", out JsonElement managedFields))
-                return "";
-
-            foreach (JsonElement field in managedFields.EnumerateArray())
-            {
-                string manager = GetStringValue(field, "manager");
-                if (!string.IsNullOrWhiteSpace(manager))
-                    return manager;
-            }
-
-            return "unknown";
-        }
-
-        private List<KubernetesKeyValue> GetLabels(JsonElement metadata)
-        {
-            List<KubernetesKeyValue> result = new List<KubernetesKeyValue>();
-
-            if (!metadata.TryGetProperty("labels", out JsonElement labels))
-                return result;
-
-            foreach (JsonProperty property in labels.EnumerateObject())
-            {
-                result.Add(new KubernetesKeyValue
-                {
-                    Chave = property.Name,
-                    Valor = property.Value.ToString()
-                });
-            }
-
-            return result;
-        }
-
-        private List<KubernetesNamespaceFinalizer> GetFinalizers(JsonElement ns)
-        {
-            List<KubernetesNamespaceFinalizer> result = new List<KubernetesNamespaceFinalizer>();
-
-            if (!ns.TryGetProperty("spec", out JsonElement spec))
-                return result;
-
-            if (!spec.TryGetProperty("finalizers", out JsonElement finalizers))
-                return result;
-
-            foreach (JsonElement finalizer in finalizers.EnumerateArray())
-            {
-                result.Add(new KubernetesNamespaceFinalizer
-                {
-                    Nome = finalizer.GetString() ?? ""
-                });
-            }
-
-            return result;
-        }
-
         private List<KubernetesNamespaceManagedField> GetManagedFields(JsonElement metadata)
         {
-            List<KubernetesNamespaceManagedField> result = new List<KubernetesNamespaceManagedField>();
+            List<KubernetesNamespaceManagedField> fields = new List<KubernetesNamespaceManagedField>();
 
-            if (!metadata.TryGetProperty("managedFields", out JsonElement managedFields))
-                return result;
+            JsonElement managedFields;
+            if (!metadata.TryGetProperty("managedFields", out managedFields) || managedFields.ValueKind != JsonValueKind.Array)
+                return fields;
 
             foreach (JsonElement field in managedFields.EnumerateArray())
             {
-                result.Add(new KubernetesNamespaceManagedField
+                fields.Add(new KubernetesNamespaceManagedField
                 {
                     Manager = GetStringValue(field, "manager"),
                     Operation = GetStringValue(field, "operation"),
@@ -272,7 +240,23 @@ namespace KubernetesController.Services
                 });
             }
 
-            return result;
+            return fields;
+        }
+
+        private string GetManagedBy(JsonElement metadata)
+        {
+            JsonElement managedFields;
+            if (!metadata.TryGetProperty("managedFields", out managedFields) || managedFields.ValueKind != JsonValueKind.Array)
+                return "unknown";
+
+            foreach (JsonElement field in managedFields.EnumerateArray())
+            {
+                string manager = GetStringValue(field, "manager");
+                if (!string.IsNullOrWhiteSpace(manager))
+                    return manager;
+            }
+
+            return "unknown";
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿using KubernetesController.Models;
+using KubernetesController.Models;
 using KubernetesController.Services;
 using System;
 using System.Collections.Generic;
@@ -627,8 +627,19 @@ namespace KubernetesController
             if (namespacesService == null)
                 return;
 
-            List<KubernetesNamespaceSummary> namespaces = await namespacesService.GetNamespacesAsync();
             namespaceDetails = await namespacesService.GetNamespaceDetailsAsync();
+
+            List<KubernetesNamespaceSummary> namespaces = namespaceDetails.Select(ns => new KubernetesNamespaceSummary
+            {
+                Name = ns.Name,
+                Status = ns.Phase,
+                CreatedAt = ns.CreationTimestamp,
+                ResourceVersion = ns.ResourceVersion,
+                Uid = ns.Uid,
+                Labels = ns.Labels.Count,
+                Finalizers = ns.FinalizersText,
+                ManagedBy = ns.ManagedBy
+            }).ToList();
 
             dgvNamespaces.DataSource = null;
             dgvNamespaces.DataSource = namespaces;
@@ -650,11 +661,11 @@ namespace KubernetesController
             if (dgvNamespaces.Columns["Name"] != null)
                 dgvNamespaces.Columns["Name"].HeaderText = "Nome";
 
-            if (dgvNamespaces.Columns["Phase"] != null)
-                dgvNamespaces.Columns["Phase"].HeaderText = "Estado";
+            if (dgvNamespaces.Columns["Status"] != null)
+                dgvNamespaces.Columns["Status"].HeaderText = "Estado";
 
-            if (dgvNamespaces.Columns["CreationTimestamp"] != null)
-                dgvNamespaces.Columns["CreationTimestamp"].HeaderText = "Criado em";
+            if (dgvNamespaces.Columns["CreatedAt"] != null)
+                dgvNamespaces.Columns["CreatedAt"].HeaderText = "Criado em";
 
             if (dgvNamespaces.Columns["ResourceVersion"] != null)
                 dgvNamespaces.Columns["ResourceVersion"].HeaderText = "Resource Version";
@@ -662,8 +673,8 @@ namespace KubernetesController
             if (dgvNamespaces.Columns["Uid"] != null)
                 dgvNamespaces.Columns["Uid"].HeaderText = "UID";
 
-            if (dgvNamespaces.Columns["LabelsCount"] != null)
-                dgvNamespaces.Columns["LabelsCount"].HeaderText = "Labels";
+            if (dgvNamespaces.Columns["Labels"] != null)
+                dgvNamespaces.Columns["Labels"].HeaderText = "Labels";
 
             if (dgvNamespaces.Columns["Finalizers"] != null)
                 dgvNamespaces.Columns["Finalizers"].HeaderText = "Finalizers";
@@ -1114,7 +1125,8 @@ namespace KubernetesController
             {
                 btnDeleteNamespace.Enabled = false;
                 await namespacesService.DeleteNamespaceAsync(selectedNamespace.Name);
-                MessageBox.Show("Pedido de eliminação enviado com sucesso.", "Sucesso", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("Pedido de eliminação enviado com sucesso. O namespace pode ficar alguns segundos em Terminating.", "Sucesso", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                await Task.Delay(2000);
                 await LoadNamespacesTabAsync();
                 await LoadDashboardAsync();
             }

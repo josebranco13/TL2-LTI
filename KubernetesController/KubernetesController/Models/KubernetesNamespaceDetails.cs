@@ -25,7 +25,6 @@ namespace KubernetesController.Models
             ResourceVersion = "";
             FinalizersText = "";
             ManagedBy = "";
-
             Labels = new List<KubernetesKeyValue>();
             Finalizers = new List<KubernetesNamespaceFinalizer>();
             ManagedFields = new List<KubernetesNamespaceManagedField>();
