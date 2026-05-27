@@ -68,6 +68,7 @@ namespace KubernetesController
             this.nodesService = new KubernetesNodesService(this.api);
             this.dashboardService = new KubernetesDashboardService(this.api);
             this.namespacesService = new KubernetesNamespacesService(this.api);
+            this.podsService = new KubernetesPodsService(this.api);
 
             this.StartPosition = FormStartPosition.CenterScreen;
             this.WindowState = FormWindowState.Maximized;
@@ -96,6 +97,7 @@ namespace KubernetesController
 
             ConfigureNodeDetailsControls();
             ConfigureNamespaceTabControls();
+            ConfigurePodsTabControls();
 
             lblTopImageValue.AutoSize = false;
             lblTopImageValue.AutoEllipsis = false;
@@ -114,6 +116,7 @@ namespace KubernetesController
             ArrangeDashboardLayout();
             ArrangeNodesLayout();
             ArrangeNamespacesLayout();
+            ArrangePodsLayout();
         }
 
         private void DashboardForm_Resize(object sender, EventArgs e)
@@ -121,6 +124,7 @@ namespace KubernetesController
             ArrangeDashboardLayout();
             ArrangeNodesLayout();
             ArrangeNamespacesLayout();
+            ArrangePodsLayout();
         }
 
         private void TabKubernetesController_SelectedIndexChanged(object sender, EventArgs e)
@@ -128,6 +132,7 @@ namespace KubernetesController
             ArrangeDashboardLayout();
             ArrangeNodesLayout();
             ArrangeNamespacesLayout();
+            ArrangePodsLayout();
         }
 
         private void ResetDashboardScroll()
@@ -566,6 +571,9 @@ namespace KubernetesController
 
                 await LoadNamespacesTabAsync();
                 ArrangeNamespacesLayout();
+
+                await LoadPodsTabAsync();
+                ArrangePodsLayout();
             }
             catch (Exception ex)
             {
