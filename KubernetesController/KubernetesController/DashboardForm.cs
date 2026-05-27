@@ -69,7 +69,8 @@ namespace KubernetesController
             this.dashboardService = new KubernetesDashboardService(this.api);
             this.namespacesService = new KubernetesNamespacesService(this.api);
             this.podsService = new KubernetesPodsService(this.api);
-            this.deploymentsService = new KubernetesDeploymentsService(this.api);
+            this.servicesService = new KubernetesServicesService(this.api);
+            this.ingressesService = new KubernetesIngressesService(this.api);
 
             this.StartPosition = FormStartPosition.CenterScreen;
             this.WindowState = FormWindowState.Maximized;
@@ -99,7 +100,7 @@ namespace KubernetesController
             ConfigureNodeDetailsControls();
             ConfigureNamespaceTabControls();
             ConfigurePodsTabControls();
-            ConfigureDeploymentTabControls();
+            ConfigureServicesTabControls();
 
             lblTopImageValue.AutoSize = false;
             lblTopImageValue.AutoEllipsis = false;
@@ -119,7 +120,7 @@ namespace KubernetesController
             ArrangeNodesLayout();
             ArrangeNamespacesLayout();
             ArrangePodsLayout();
-            ArrangeDeploymentsLayout();
+            ArrangeServicesLayout();
         }
 
         private void DashboardForm_Resize(object sender, EventArgs e)
@@ -128,7 +129,7 @@ namespace KubernetesController
             ArrangeNodesLayout();
             ArrangeNamespacesLayout();
             ArrangePodsLayout();
-            ArrangeDeploymentsLayout();
+            ArrangeServicesLayout();
         }
 
         private async void TabKubernetesController_SelectedIndexChanged(object sender, EventArgs e)
@@ -167,21 +168,21 @@ namespace KubernetesController
                 ArrangePodsLayout();
             }
 
-            if (tabKubernetesController.SelectedTab == tabDeployments)
+            if (tabKubernetesController.SelectedTab == tabServices)
             {
-                ConfigureDeploymentTabControls();
-                ArrangeDeploymentsLayout();
+                ConfigureServicesTabControls();
+                ArrangeServicesLayout();
 
-                if (deploymentsService != null && dgvDeployments != null && dgvDeployments.Rows.Count == 0)
+                if (servicesService != null && dgvServices != null && dgvServices.Rows.Count == 0)
                 {
                     try
                     {
-                        await LoadDeploymentsTabAsync();
+                        await LoadServicesAndIngressesTabAsync();
                     }
                     catch (Exception ex)
                     {
                         MessageBox.Show(
-                            "Erro ao carregar deployments.\n\n" + ex.Message,
+                            "Erro ao carregar services/ingresses.\n\n" + ex.Message,
                             "Erro",
                             MessageBoxButtons.OK,
                             MessageBoxIcon.Error
@@ -191,7 +192,7 @@ namespace KubernetesController
             }
             else
             {
-                ArrangeDeploymentsLayout();
+                ArrangeServicesLayout();
             }
         }
 
@@ -663,11 +664,11 @@ namespace KubernetesController
                 ArrangePodsLayout();
             });
 
-            await TryLoadSectionAsync("deployments", async () =>
+            await TryLoadSectionAsync("services/ingresses", async () =>
             {
-                ConfigureDeploymentTabControls();
-                await LoadDeploymentsTabAsync();
-                ArrangeDeploymentsLayout();
+                ConfigureServicesTabControls();
+                await LoadServicesAndIngressesTabAsync();
+                ArrangeServicesLayout();
             });
         }
 

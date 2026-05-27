@@ -89,7 +89,7 @@
       <DependentUpon>DashboardForm.cs</DependentUpon>
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="DashboardDeployments.partial.cs">
+    <Compile Include="DashboardServicesIngresses.partial.cs">
       <DependentUpon>DashboardForm.cs</DependentUpon>
       <SubType>Form</SubType>
     </Compile>
@@ -99,7 +99,10 @@
     <Compile Include="CreatePodForm.cs">
       <SubType>Form</SubType>
     </Compile>
-    <Compile Include="CreateDeploymentForm.cs">
+    <Compile Include="CreateServiceForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="CreateIngressForm.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Form1.cs">
@@ -115,8 +118,10 @@
     <Compile Include="Models\KubernetesNamespaceDetails.cs" />
     <Compile Include="Models\KubernetesPodSummary.cs" />
     <Compile Include="Models\KubernetesPodDetails.cs" />
-    <Compile Include="Models\KubernetesDeploymentSummary.cs" />
-    <Compile Include="Models\KubernetesDeploymentDetails.cs" />
+    <Compile Include="Models\KubernetesServiceSummary.cs" />
+    <Compile Include="Models\KubernetesServiceDetails.cs" />
+    <Compile Include="Models\KubernetesIngressSummary.cs" />
+    <Compile Include="Models\KubernetesIngressDetails.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Properties\Settings.Designer.cs">
@@ -128,7 +133,8 @@
     <Compile Include="Services\KubernetesDashboardService.cs" />
     <Compile Include="Services\KubernetesNamespacesService.cs" />
     <Compile Include="Services\KubernetesPodsService.cs" />
-    <Compile Include="Services\KubernetesDeploymentsService.cs" />
+    <Compile Include="Services\KubernetesServicesService.cs" />
+    <Compile Include="Services\KubernetesIngressesService.cs" />
     <Compile Include="Services\KubernetesNodesService.cs" />
     <EmbeddedResource Include="DashboardForm.resx">
       <DependentUpon>DashboardForm.cs</DependentUpon>
