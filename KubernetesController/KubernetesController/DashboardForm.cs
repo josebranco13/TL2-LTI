@@ -127,12 +127,41 @@ namespace KubernetesController
             ArrangePodsLayout();
         }
 
-        private void TabKubernetesController_SelectedIndexChanged(object sender, EventArgs e)
+        private async void TabKubernetesController_SelectedIndexChanged(object sender, EventArgs e)
         {
             ArrangeDashboardLayout();
             ArrangeNodesLayout();
             ArrangeNamespacesLayout();
-            ArrangePodsLayout();
+
+            // A aba Pods é criada e carregada também quando o utilizador entra nela.
+            // Isto evita a situação em que a aba fica vazia se o carregamento inicial
+            // do cluster parar antes de chegar aos pods.
+            if (tabKubernetesController.SelectedTab == tabPods)
+            {
+                ConfigurePodsTabControls();
+                ArrangePodsLayout();
+
+                if (podsService != null && dgvPods != null && dgvPods.Rows.Count == 0)
+                {
+                    try
+                    {
+                        await LoadPodsTabAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show(
+                            "Erro ao carregar pods.\n\n" + ex.Message,
+                            "Erro",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error
+                        );
+                    }
+                }
+            }
+            else
+            {
+                ArrangePodsLayout();
+            }
         }
 
         private void ResetDashboardScroll()
@@ -556,33 +585,65 @@ namespace KubernetesController
             if (api == null || nodesService == null || dashboardService == null)
                 return;
 
+            lblConnectionInfo.Text = "Ligado a: " + baseUrl;
+
             try
             {
-                lblConnectionInfo.Text = "Ligado a: " + baseUrl;
-
                 await api.GetAsync("/version");
-                ResetDashboardScroll();
-                await LoadDashboardAsync();
-                ResetDashboardScroll();
-                ArrangeDashboardLayout();
-
-                await LoadNodesTabAsync();
-                ArrangeNodesLayout();
-
-                await LoadNamespacesTabAsync();
-                ArrangeNamespacesLayout();
-
-                await LoadPodsTabAsync();
-                ArrangePodsLayout();
             }
             catch (Exception ex)
             {
                 MessageBox.Show(
-                    "Erro ao carregar dados do cluster.\n\n" + ex.Message,
+                    "Erro ao testar ligação ao cluster.\n\n" + ex.Message,
                     "Erro",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error
                 );
+                return;
+            }
+
+            // Cada área é carregada de forma independente. Assim, se um pedido falhar
+            // temporariamente, as outras abas continuam a aparecer e podem ser atualizadas
+            // pelo respetivo botão.
+            await TryLoadSectionAsync("dashboard", async () =>
+            {
+                ResetDashboardScroll();
+                await LoadDashboardAsync();
+                ResetDashboardScroll();
+                ArrangeDashboardLayout();
+            });
+
+            await TryLoadSectionAsync("nodes", async () =>
+            {
+                await LoadNodesTabAsync();
+                ArrangeNodesLayout();
+            });
+
+            await TryLoadSectionAsync("namespaces", async () =>
+            {
+                await LoadNamespacesTabAsync();
+                ArrangeNamespacesLayout();
+            });
+
+            await TryLoadSectionAsync("pods", async () =>
+            {
+                ConfigurePodsTabControls();
+                await LoadPodsTabAsync();
+                ArrangePodsLayout();
+            });
+        }
+
+        private async Task TryLoadSectionAsync(string sectionName, Func<Task> loadAction)
+        {
+            try
+            {
+                await loadAction();
+            }
+            catch (Exception ex)
+            {
+                // Não bloqueia o arranque da aplicação. O utilizador pode voltar a tentar
+                // através do botão Atualizar da respetiva aba.
+                Console.WriteLine("Erro ao carregar " + sectionName + ": " + ex.Message);
             }
         }
 

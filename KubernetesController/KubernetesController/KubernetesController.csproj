@@ -87,6 +87,7 @@
     </Compile>
     <Compile Include="DashboardPods.partial.cs">
       <DependentUpon>DashboardForm.cs</DependentUpon>
+      <SubType>Form</SubType>
     </Compile>
     <Compile Include="CreateNamespaceForm.cs">
       <SubType>Form</SubType>

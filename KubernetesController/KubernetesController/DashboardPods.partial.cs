@@ -30,15 +30,31 @@ namespace KubernetesController
 
         private void ConfigurePodsTabControls()
         {
-            if (pnlPodsContent != null)
+            if (tabPods == null)
                 return;
 
+            // Se os controlos já existirem, garante que continuam associados à aba.
+            // Isto corrige casos em que a TabPage fica vazia após alterações no Designer
+            // ou após aplicar patches sucessivos ao DashboardForm.
+            if (pnlPodsContent != null && dgvPods != null)
+            {
+                if (!tabPods.Controls.Contains(pnlPodsContent))
+                    tabPods.Controls.Add(pnlPodsContent);
+
+                pnlPodsContent.Dock = DockStyle.Fill;
+                pnlPodsContent.Visible = true;
+                pnlPodsContent.BringToFront();
+                return;
+            }
+
+            tabPods.SuspendLayout();
             tabPods.Controls.Clear();
 
             pnlPodsContent = new Panel();
             pnlPodsContent.Name = "pnlPodsContent";
             pnlPodsContent.Dock = DockStyle.Fill;
             pnlPodsContent.AutoScroll = true;
+            pnlPodsContent.Visible = true;
             tabPods.Controls.Add(pnlPodsContent);
 
             btnRefreshPods = new Button();
@@ -96,12 +112,22 @@ namespace KubernetesController
             AddDetailsTab(tabPodDetails, "Tolerations", dgvPodTolerations);
 
             pnlPodsContent.Controls.Add(tabPodDetails);
+
+            pnlPodsContent.BringToFront();
+            tabPods.ResumeLayout(false);
         }
 
         private void ArrangePodsLayout()
         {
+            if (pnlPodsContent == null || dgvPods == null || tabPodDetails == null)
+                ConfigurePodsTabControls();
+
             if (pnlPodsContent == null)
                 return;
+
+            pnlPodsContent.Dock = DockStyle.Fill;
+            pnlPodsContent.Visible = true;
+            pnlPodsContent.BringToFront();
 
             int margin = 24;
             int gap = 14;
@@ -127,7 +153,10 @@ namespace KubernetesController
 
         private async Task LoadPodsTabAsync()
         {
-            if (podsService == null)
+            if (pnlPodsContent == null || dgvPods == null)
+                ConfigurePodsTabControls();
+
+            if (podsService == null || dgvPods == null)
                 return;
 
             podDetails = await podsService.GetPodDetailsAsync();
