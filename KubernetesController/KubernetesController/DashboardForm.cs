@@ -69,6 +69,7 @@ namespace KubernetesController
             this.dashboardService = new KubernetesDashboardService(this.api);
             this.namespacesService = new KubernetesNamespacesService(this.api);
             this.podsService = new KubernetesPodsService(this.api);
+            this.deploymentsService = new KubernetesDeploymentsService(this.api);
 
             this.StartPosition = FormStartPosition.CenterScreen;
             this.WindowState = FormWindowState.Maximized;
@@ -98,6 +99,7 @@ namespace KubernetesController
             ConfigureNodeDetailsControls();
             ConfigureNamespaceTabControls();
             ConfigurePodsTabControls();
+            ConfigureDeploymentTabControls();
 
             lblTopImageValue.AutoSize = false;
             lblTopImageValue.AutoEllipsis = false;
@@ -117,6 +119,7 @@ namespace KubernetesController
             ArrangeNodesLayout();
             ArrangeNamespacesLayout();
             ArrangePodsLayout();
+            ArrangeDeploymentsLayout();
         }
 
         private void DashboardForm_Resize(object sender, EventArgs e)
@@ -125,6 +128,7 @@ namespace KubernetesController
             ArrangeNodesLayout();
             ArrangeNamespacesLayout();
             ArrangePodsLayout();
+            ArrangeDeploymentsLayout();
         }
 
         private async void TabKubernetesController_SelectedIndexChanged(object sender, EventArgs e)
@@ -161,6 +165,33 @@ namespace KubernetesController
             else
             {
                 ArrangePodsLayout();
+            }
+
+            if (tabKubernetesController.SelectedTab == tabDeployments)
+            {
+                ConfigureDeploymentTabControls();
+                ArrangeDeploymentsLayout();
+
+                if (deploymentsService != null && dgvDeployments != null && dgvDeployments.Rows.Count == 0)
+                {
+                    try
+                    {
+                        await LoadDeploymentsTabAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show(
+                            "Erro ao carregar deployments.\n\n" + ex.Message,
+                            "Erro",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error
+                        );
+                    }
+                }
+            }
+            else
+            {
+                ArrangeDeploymentsLayout();
             }
         }
 
@@ -630,6 +661,13 @@ namespace KubernetesController
                 ConfigurePodsTabControls();
                 await LoadPodsTabAsync();
                 ArrangePodsLayout();
+            });
+
+            await TryLoadSectionAsync("deployments", async () =>
+            {
+                ConfigureDeploymentTabControls();
+                await LoadDeploymentsTabAsync();
+                ArrangeDeploymentsLayout();
             });
         }
 
