@@ -69,6 +69,7 @@ namespace KubernetesController
             this.dashboardService = new KubernetesDashboardService(this.api);
             this.namespacesService = new KubernetesNamespacesService(this.api);
             this.podsService = new KubernetesPodsService(this.api);
+            this.deploymentsService = new KubernetesDeploymentsService(this.api);
             this.servicesService = new KubernetesServicesService(this.api);
             this.ingressesService = new KubernetesIngressesService(this.api);
 
@@ -100,6 +101,7 @@ namespace KubernetesController
             ConfigureNodeDetailsControls();
             ConfigureNamespaceTabControls();
             ConfigurePodsTabControls();
+            ConfigureDeploymentTabControls();
             ConfigureServicesTabControls();
 
             lblTopImageValue.AutoSize = false;
@@ -120,6 +122,7 @@ namespace KubernetesController
             ArrangeNodesLayout();
             ArrangeNamespacesLayout();
             ArrangePodsLayout();
+            ArrangeDeploymentsLayout();
             ArrangeServicesLayout();
         }
 
@@ -129,6 +132,7 @@ namespace KubernetesController
             ArrangeNodesLayout();
             ArrangeNamespacesLayout();
             ArrangePodsLayout();
+            ArrangeDeploymentsLayout();
             ArrangeServicesLayout();
         }
 
@@ -168,12 +172,42 @@ namespace KubernetesController
                 ArrangePodsLayout();
             }
 
+            if (tabKubernetesController.SelectedTab == tabDeployments)
+            {
+                ConfigureDeploymentTabControls();
+                ArrangeDeploymentsLayout();
+
+                if (deploymentsService != null && dgvDeployments != null && dgvDeployments.Rows.Count == 0)
+                {
+                    try
+                    {
+                        await LoadDeploymentsTabAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show(
+                            "Erro ao carregar deployments.\n\n" + ex.Message,
+                            "Erro",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Error
+                        );
+                    }
+                }
+            }
+            else
+            {
+                ArrangeDeploymentsLayout();
+            }
+
             if (tabKubernetesController.SelectedTab == tabServices)
             {
                 ConfigureServicesTabControls();
                 ArrangeServicesLayout();
 
-                if (servicesService != null && dgvServices != null && dgvServices.Rows.Count == 0)
+                bool servicesEmpty = dgvServices == null || dgvServices.Rows.Count == 0;
+                bool ingressesEmpty = dgvIngresses == null || dgvIngresses.Rows.Count == 0;
+
+                if ((servicesService != null || ingressesService != null) && (servicesEmpty || ingressesEmpty))
                 {
                     try
                     {
@@ -664,7 +698,14 @@ namespace KubernetesController
                 ArrangePodsLayout();
             });
 
-            await TryLoadSectionAsync("services/ingresses", async () =>
+            await TryLoadSectionAsync("deployments", async () =>
+            {
+                ConfigureDeploymentTabControls();
+                await LoadDeploymentsTabAsync();
+                ArrangeDeploymentsLayout();
+            });
+
+            await TryLoadSectionAsync("services-ingresses", async () =>
             {
                 ConfigureServicesTabControls();
                 await LoadServicesAndIngressesTabAsync();
