@@ -580,7 +580,7 @@ namespace KubernetesController
             if (servicesService == null)
                 return;
 
-            using (CreateServiceForm form = new CreateServiceForm())
+            using (CreateServiceForm form = new CreateServiceForm(await GetNamespaceOptionsForFormsAsync()))
             {
                 if (form.ShowDialog(this) != DialogResult.OK)
                     return;

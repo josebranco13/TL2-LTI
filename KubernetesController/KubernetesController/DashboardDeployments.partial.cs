@@ -348,7 +348,7 @@ namespace KubernetesController
             if (deploymentsService == null)
                 return;
 
-            using (CreateDeploymentForm form = new CreateDeploymentForm())
+            using (CreateDeploymentForm form = new CreateDeploymentForm(await GetNamespaceOptionsForFormsAsync(), await GetContainerOptionsForFormsAsync()))
             {
                 if (form.ShowDialog(this) != DialogResult.OK)
                     return;

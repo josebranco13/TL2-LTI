@@ -9,7 +9,7 @@ namespace KubernetesController
         private Label lblNamespaceName;
         private Label lblLabels;
         private TextBox txtNamespaceName;
-        private TextBox txtLabels;
+        private NumericUpDown nudLabels;
         private Button btnCreate;
         private Button btnCancel;
 
@@ -28,51 +28,58 @@ namespace KubernetesController
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
             this.MinimizeBox = false;
-            this.ClientSize = new Size(430, 180);
+            this.ClientSize = new Size(510, 170);
 
-            lblNamespaceName = new Label();
-            lblNamespaceName.Text = "Nome do Namespace:";
-            lblNamespaceName.AutoSize = true;
-            lblNamespaceName.Location = new Point(18, 28);
+            lblNamespaceName = CreateLabel("Nome do Namespace:", 18, 26, 165);
 
             txtNamespaceName = new TextBox();
             txtNamespaceName.Name = "txtNamespaceName";
-            txtNamespaceName.Location = new Point(185, 25);
-            txtNamespaceName.Size = new Size(220, 24);
+            txtNamespaceName.Location = new Point(190, 23);
+            txtNamespaceName.Size = new Size(285, 24);
             txtNamespaceName.ShortcutsEnabled = true;
 
-            lblLabels = new Label();
-            lblLabels.Text = "Labels (opcional):";
-            lblLabels.AutoSize = true;
-            lblLabels.Location = new Point(18, 72);
+            lblLabels = CreateLabel("N.º de Labels:", 18, 68, 165);
 
-            txtLabels = new TextBox();
-            txtLabels.Name = "txtLabels";
-            txtLabels.Location = new Point(185, 69);
-            txtLabels.Size = new Size(220, 24);
-            txtLabels.ShortcutsEnabled = true;
+            nudLabels = new NumericUpDown();
+            nudLabels.Name = "nudLabels";
+            nudLabels.Location = new Point(190, 65);
+            nudLabels.Size = new Size(90, 24);
+            nudLabels.Minimum = 0;
+            nudLabels.Maximum = 20;
+            nudLabels.Value = 0;
 
             btnCreate = new Button();
             btnCreate.Text = "Criar";
-            btnCreate.Location = new Point(120, 120);
-            btnCreate.Size = new Size(190, 35);
+            btnCreate.Location = new Point(190, 115);
+            btnCreate.Size = new Size(135, 32);
             btnCreate.Click += new EventHandler(btnCreate_Click);
 
             btnCancel = new Button();
             btnCancel.Text = "Cancelar";
-            btnCancel.Location = new Point(315, 120);
-            btnCancel.Size = new Size(90, 35);
+            btnCancel.Location = new Point(340, 115);
+            btnCancel.Size = new Size(135, 32);
             btnCancel.Click += new EventHandler(btnCancel_Click);
 
             this.Controls.Add(lblNamespaceName);
             this.Controls.Add(txtNamespaceName);
             this.Controls.Add(lblLabels);
-            this.Controls.Add(txtLabels);
+            this.Controls.Add(nudLabels);
             this.Controls.Add(btnCreate);
             this.Controls.Add(btnCancel);
 
             this.AcceptButton = btnCreate;
             this.CancelButton = btnCancel;
+        }
+
+        private Label CreateLabel(string text, int x, int y, int width)
+        {
+            Label label = new Label();
+            label.Text = text;
+            label.AutoSize = false;
+            label.Location = new Point(x, y);
+            label.Size = new Size(width, 24);
+            label.TextAlign = ContentAlignment.MiddleLeft;
+            return label;
         }
 
         private void btnCreate_Click(object sender, EventArgs e)
@@ -85,7 +92,7 @@ namespace KubernetesController
             }
 
             NamespaceName = txtNamespaceName.Text.Trim();
-            LabelsText = txtLabels.Text.Trim();
+            LabelsText = string.Empty;
             DialogResult = DialogResult.OK;
             Close();
         }

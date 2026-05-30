@@ -343,7 +343,7 @@ namespace KubernetesController
             if (podsService == null)
                 return;
 
-            using (CreatePodForm form = new CreatePodForm())
+            using (CreatePodForm form = new CreatePodForm(await GetNamespaceOptionsForFormsAsync(), await GetContainerOptionsForFormsAsync()))
             {
                 if (form.ShowDialog(this) != DialogResult.OK)
                     return;

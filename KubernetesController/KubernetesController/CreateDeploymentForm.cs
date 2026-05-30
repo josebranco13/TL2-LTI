@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
 
 namespace KubernetesController
@@ -12,12 +14,15 @@ namespace KubernetesController
         private Label lblNamespace;
         private Label lblLabels;
         private TextBox txtDeploymentName;
-        private TextBox txtContainers;
-        private TextBox txtReplicas;
-        private TextBox txtNamespace;
-        private TextBox txtLabels;
+        private ComboBox cmbContainers;
+        private NumericUpDown nudReplicas;
+        private ComboBox cmbNamespace;
+        private NumericUpDown nudLabels;
         private Button btnCreate;
         private Button btnCancel;
+
+        private readonly List<string> namespaceOptions;
+        private readonly List<string> containerOptions;
 
         public string DeploymentName
         {
@@ -26,26 +31,30 @@ namespace KubernetesController
 
         public string ContainersText
         {
-            get { return txtContainers.Text.Trim(); }
+            get { return cmbContainers.Text.Trim(); }
         }
 
         public string ReplicasText
         {
-            get { return txtReplicas.Text.Trim(); }
+            get { return Convert.ToInt32(nudReplicas.Value).ToString(); }
         }
 
         public string NamespaceName
         {
-            get { return txtNamespace.Text.Trim(); }
+            get { return cmbNamespace.Text.Trim(); }
         }
 
-        public string LabelsText
-        {
-            get { return txtLabels.Text.Trim(); }
-        }
+        public string LabelsText { get; private set; }
 
         public CreateDeploymentForm()
+            : this(null, null)
         {
+        }
+
+        public CreateDeploymentForm(IEnumerable<string> namespaces, IEnumerable<string> containers)
+        {
+            namespaceOptions = BuildOptions(namespaces, "default");
+            containerOptions = BuildOptions(containers, "web:nginx");
             InitializeComponent();
         }
 
@@ -56,66 +65,44 @@ namespace KubernetesController
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
             this.MinimizeBox = false;
-            this.ClientSize = new Size(410, 265);
+            this.ClientSize = new Size(535, 300);
 
-            lblDeploymentName = new Label();
-            lblDeploymentName.Text = "Nome do Deployment:";
-            lblDeploymentName.Location = new Point(18, 22);
-            lblDeploymentName.Size = new Size(160, 23);
+            lblDeploymentName = CreateLabel("Nome do Deployment:", 18, 22, 180);
+            txtDeploymentName = CreateTextBox(205, 20, 300, "");
 
-            txtDeploymentName = new TextBox();
-            txtDeploymentName.Location = new Point(185, 20);
-            txtDeploymentName.Size = new Size(200, 27);
+            lblContainers = CreateLabel("Containers (nome:imagem):", 18, 62, 180);
+            cmbContainers = CreateComboBox(205, 60, 300, containerOptions, true);
+            SelectComboValue(cmbContainers, "web:nginx");
 
-            lblContainers = new Label();
-            lblContainers.Text = "Containers (nome:imagem):";
-            lblContainers.Location = new Point(18, 62);
-            lblContainers.Size = new Size(165, 23);
+            lblReplicas = CreateLabel("N.º Réplicas:", 18, 102, 180);
+            nudReplicas = new NumericUpDown();
+            nudReplicas.Location = new Point(205, 100);
+            nudReplicas.Size = new Size(110, 27);
+            nudReplicas.Minimum = 0;
+            nudReplicas.Maximum = 1000;
+            nudReplicas.Value = 1;
 
-            txtContainers = new TextBox();
-            txtContainers.Location = new Point(185, 60);
-            txtContainers.Size = new Size(200, 27);
-            txtContainers.Text = "web:nginx";
+            lblNamespace = CreateLabel("Namespace:", 18, 142, 180);
+            cmbNamespace = CreateComboBox(205, 140, 300, namespaceOptions, false);
+            SelectComboValue(cmbNamespace, "default");
 
-            lblReplicas = new Label();
-            lblReplicas.Text = "N.º Réplicas:";
-            lblReplicas.Location = new Point(18, 102);
-            lblReplicas.Size = new Size(160, 23);
-
-            txtReplicas = new TextBox();
-            txtReplicas.Location = new Point(185, 100);
-            txtReplicas.Size = new Size(200, 27);
-            txtReplicas.Text = "1";
-
-            lblNamespace = new Label();
-            lblNamespace.Text = "Namespace (opcional):";
-            lblNamespace.Location = new Point(18, 142);
-            lblNamespace.Size = new Size(160, 23);
-
-            txtNamespace = new TextBox();
-            txtNamespace.Location = new Point(185, 140);
-            txtNamespace.Size = new Size(200, 27);
-            txtNamespace.Text = "default";
-
-            lblLabels = new Label();
-            lblLabels.Text = "Labels (opcional):";
-            lblLabels.Location = new Point(18, 182);
-            lblLabels.Size = new Size(160, 23);
-
-            txtLabels = new TextBox();
-            txtLabels.Location = new Point(185, 180);
-            txtLabels.Size = new Size(200, 27);
-
+            lblLabels = CreateLabel("N.º de Labels:", 18, 182, 180);
+            nudLabels = new NumericUpDown();
+            nudLabels.Location = new Point(205, 180);
+            nudLabels.Size = new Size(110, 27);
+            nudLabels.Minimum = 0;
+            nudLabels.Maximum = 20;
+            nudLabels.Value = 0;
             btnCreate = new Button();
             btnCreate.Text = "Criar";
-            btnCreate.Location = new Point(105, 222);
-            btnCreate.Size = new Size(120, 32);
+            btnCreate.Location = new Point(165, 245);
+            btnCreate.Size = new Size(150, 34);
             btnCreate.Click += new EventHandler(btnCreate_Click);
 
             btnCancel = new Button();
             btnCancel.Text = "Cancelar";
-            btnCancel.Location = new Point(240, 222);
-            btnCancel.Size = new Size(120, 32);
+            btnCancel.Location = new Point(335, 245);
+            btnCancel.Size = new Size(150, 34);
             btnCancel.DialogResult = DialogResult.Cancel;
 
             this.AcceptButton = btnCreate;
@@ -124,15 +111,92 @@ namespace KubernetesController
             this.Controls.Add(lblDeploymentName);
             this.Controls.Add(txtDeploymentName);
             this.Controls.Add(lblContainers);
-            this.Controls.Add(txtContainers);
+            this.Controls.Add(cmbContainers);
             this.Controls.Add(lblReplicas);
-            this.Controls.Add(txtReplicas);
+            this.Controls.Add(nudReplicas);
             this.Controls.Add(lblNamespace);
-            this.Controls.Add(txtNamespace);
+            this.Controls.Add(cmbNamespace);
             this.Controls.Add(lblLabels);
-            this.Controls.Add(txtLabels);
+            this.Controls.Add(nudLabels);
             this.Controls.Add(btnCreate);
             this.Controls.Add(btnCancel);
+
+        }
+
+        private List<string> BuildOptions(IEnumerable<string> values, string fallback)
+        {
+            List<string> result = new List<string>();
+
+            if (values != null)
+            {
+                foreach (string value in values)
+                {
+                    if (!string.IsNullOrWhiteSpace(value) && !result.Any(v => string.Equals(v, value.Trim(), StringComparison.OrdinalIgnoreCase)))
+                        result.Add(value.Trim());
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(fallback) && !result.Any(v => string.Equals(v, fallback, StringComparison.OrdinalIgnoreCase)))
+                result.Insert(0, fallback);
+
+            return result;
+        }
+
+        private Label CreateLabel(string text, int x, int y, int width)
+        {
+            Label label = new Label();
+            label.Text = text;
+            label.Location = new Point(x, y);
+            label.Size = new Size(width, 23);
+            label.TextAlign = ContentAlignment.MiddleLeft;
+            return label;
+        }
+
+        private TextBox CreateTextBox(int x, int y, int width, string value)
+        {
+            TextBox textBox = new TextBox();
+            textBox.Location = new Point(x, y);
+            textBox.Size = new Size(width, 27);
+            textBox.Text = value;
+            return textBox;
+        }
+
+        private ComboBox CreateComboBox(int x, int y, int width, List<string> values, bool allowTyping)
+        {
+            ComboBox combo = new ComboBox();
+            combo.Location = new Point(x, y);
+            combo.Size = new Size(width, 28);
+            combo.DropDownStyle = allowTyping ? ComboBoxStyle.DropDown : ComboBoxStyle.DropDownList;
+            combo.AutoCompleteSource = AutoCompleteSource.ListItems;
+            combo.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
+
+            foreach (string value in values)
+                combo.Items.Add(value);
+
+            if (combo.Items.Count > 0)
+                combo.SelectedIndex = 0;
+
+            return combo;
+        }
+
+        private void SelectComboValue(ComboBox combo, string value)
+        {
+            for (int i = 0; i < combo.Items.Count; i++)
+            {
+                if (string.Equals(combo.Items[i].ToString(), value, StringComparison.OrdinalIgnoreCase))
+                {
+                    combo.SelectedIndex = i;
+                    return;
+                }
+            }
+
+            if (combo.DropDownStyle == ComboBoxStyle.DropDown)
+                combo.Text = value;
+        }
+
+        private string BuildLabelsText()
+        {
+            return string.Empty;
         }
 
         private void btnCreate_Click(object sender, EventArgs e)
@@ -147,20 +211,27 @@ namespace KubernetesController
             if (string.IsNullOrWhiteSpace(ContainersText))
             {
                 MessageBox.Show("Indica pelo menos um container no formato nome:imagem.", "Validação", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                txtContainers.Focus();
+                cmbContainers.Focus();
                 return;
             }
 
-            int replicas;
-            if (!int.TryParse(ReplicasText, out replicas) || replicas < 0)
+            if (string.IsNullOrWhiteSpace(NamespaceName))
             {
-                MessageBox.Show("O número de réplicas tem de ser um número inteiro igual ou superior a zero.", "Validação", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                txtReplicas.Focus();
+                MessageBox.Show("Seleciona um namespace.", "Validação", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                cmbNamespace.Focus();
                 return;
             }
 
-            this.DialogResult = DialogResult.OK;
-            this.Close();
+            try
+            {
+                LabelsText = BuildLabelsText();
+                this.DialogResult = DialogResult.OK;
+                this.Close();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "Validação", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
         }
     }
 }
