@@ -16,6 +16,7 @@ namespace KubernetesController
         private Panel pnlDeploymentsContent;
         private Button btnRefreshDeployments;
         private Button btnCreateDeployment;
+        private Button btnExportDeployment;
         private Button btnDeleteDeployment;
         private DataGridView dgvDeployments;
         private TabControl tabDeploymentDetails;
@@ -68,6 +69,13 @@ namespace KubernetesController
             btnCreateDeployment.UseVisualStyleBackColor = true;
             btnCreateDeployment.Click += new EventHandler(btnCreateDeployment_Click);
             pnlDeploymentsContent.Controls.Add(btnCreateDeployment);
+
+            btnExportDeployment = new Button();
+            btnExportDeployment.Name = "btnExportDeployment";
+            btnExportDeployment.Text = "Exportar";
+            btnExportDeployment.UseVisualStyleBackColor = true;
+            btnExportDeployment.Click += new EventHandler(btnExportDeployment_Click);
+            pnlDeploymentsContent.Controls.Add(btnExportDeployment);
 
             btnDeleteDeployment = new Button();
             btnDeleteDeployment.Name = "btnDeleteDeployment";
@@ -136,8 +144,11 @@ namespace KubernetesController
             btnRefreshDeployments.Location = new Point(margin, 20);
             btnRefreshDeployments.Size = new Size(190, 35);
 
-            btnCreateDeployment.Location = new Point(margin + contentWidth - 360, 20);
+            btnCreateDeployment.Location = new Point(margin + contentWidth - 550, 20);
             btnCreateDeployment.Size = new Size(170, 35);
+
+            btnExportDeployment.Location = new Point(margin + contentWidth - 360, 20);
+            btnExportDeployment.Size = new Size(170, 35);
 
             btnDeleteDeployment.Location = new Point(margin + contentWidth - 170, 20);
             btnDeleteDeployment.Size = new Size(170, 35);
@@ -348,7 +359,7 @@ namespace KubernetesController
             if (deploymentsService == null)
                 return;
 
-            using (CreateDeploymentForm form = new CreateDeploymentForm(await GetNamespaceOptionsForFormsAsync(), await GetContainerOptionsForFormsAsync()))
+            using (CreateDeploymentForm form = new CreateDeploymentForm())
             {
                 if (form.ShowDialog(this) != DialogResult.OK)
                     return;
@@ -375,6 +386,37 @@ namespace KubernetesController
                 {
                     btnCreateDeployment.Enabled = true;
                 }
+            }
+        }
+
+        private async void btnExportDeployment_Click(object sender, EventArgs e)
+        {
+            if (dgvDeployments == null || dgvDeployments.CurrentRow == null)
+                return;
+
+            KubernetesDeploymentSummary selectedDeployment = dgvDeployments.CurrentRow.DataBoundItem as KubernetesDeploymentSummary;
+            if (selectedDeployment == null || string.IsNullOrWhiteSpace(selectedDeployment.Name) || string.IsNullOrWhiteSpace(selectedDeployment.Namespace))
+                return;
+
+            string encodedNamespace = Uri.EscapeDataString(selectedDeployment.Namespace.Trim());
+            string encodedName = Uri.EscapeDataString(selectedDeployment.Name.Trim());
+
+            try
+            {
+                btnExportDeployment.Enabled = false;
+                await ExportResourceAsync(
+                    "/apis/apps/v1/namespaces/" + encodedNamespace + "/deployments/" + encodedName,
+                    selectedDeployment.Namespace + "-" + selectedDeployment.Name,
+                    "Exportar Deployment"
+                );
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Erro ao exportar deployment.\n\n" + ex.Message, "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                btnExportDeployment.Enabled = true;
             }
         }
 

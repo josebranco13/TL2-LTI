@@ -26,6 +26,7 @@ namespace KubernetesController
         private Panel pnlServicesList;
         private Button btnRefreshServices;
         private Button btnCreateService;
+        private Button btnExportService;
         private Button btnDeleteService;
         private DataGridView dgvServices;
         private TabControl tabServiceDetails;
@@ -41,6 +42,7 @@ namespace KubernetesController
         private Panel pnlIngressesList;
         private Button btnRefreshIngresses;
         private Button btnCreateIngress;
+        private Button btnExportIngress;
         private Button btnDeleteIngress;
         private DataGridView dgvIngresses;
         private TabControl tabIngressDetails;
@@ -117,6 +119,13 @@ namespace KubernetesController
             btnCreateService.Click += new EventHandler(btnCreateService_Click);
             pnlServicesList.Controls.Add(btnCreateService);
 
+            btnExportService = new Button();
+            btnExportService.Name = "btnExportService";
+            btnExportService.Text = "Exportar";
+            btnExportService.UseVisualStyleBackColor = true;
+            btnExportService.Click += new EventHandler(btnExportService_Click);
+            pnlServicesList.Controls.Add(btnExportService);
+
             btnDeleteService = new Button();
             btnDeleteService.Name = "btnDeleteService";
             btnDeleteService.Text = "Eliminar";
@@ -172,6 +181,13 @@ namespace KubernetesController
             btnCreateIngress.UseVisualStyleBackColor = true;
             btnCreateIngress.Click += new EventHandler(btnCreateIngress_Click);
             pnlIngressesList.Controls.Add(btnCreateIngress);
+
+            btnExportIngress = new Button();
+            btnExportIngress.Name = "btnExportIngress";
+            btnExportIngress.Text = "Exportar";
+            btnExportIngress.UseVisualStyleBackColor = true;
+            btnExportIngress.Click += new EventHandler(btnExportIngress_Click);
+            pnlIngressesList.Controls.Add(btnExportIngress);
 
             btnDeleteIngress = new Button();
             btnDeleteIngress.Name = "btnDeleteIngress";
@@ -248,8 +264,11 @@ namespace KubernetesController
             btnRefreshServices.Location = new Point(margin, 20);
             btnRefreshServices.Size = new Size(170, 35);
 
-            btnCreateService.Location = new Point(margin + contentWidth - 360, 20);
+            btnCreateService.Location = new Point(margin + contentWidth - 550, 20);
             btnCreateService.Size = new Size(170, 35);
+
+            btnExportService.Location = new Point(margin + contentWidth - 360, 20);
+            btnExportService.Size = new Size(170, 35);
 
             btnDeleteService.Location = new Point(margin + contentWidth - 170, 20);
             btnDeleteService.Size = new Size(170, 35);
@@ -275,8 +294,11 @@ namespace KubernetesController
             btnRefreshIngresses.Location = new Point(margin, 20);
             btnRefreshIngresses.Size = new Size(170, 35);
 
-            btnCreateIngress.Location = new Point(margin + contentWidth - 360, 20);
+            btnCreateIngress.Location = new Point(margin + contentWidth - 550, 20);
             btnCreateIngress.Size = new Size(170, 35);
+
+            btnExportIngress.Location = new Point(margin + contentWidth - 360, 20);
+            btnExportIngress.Size = new Size(170, 35);
 
             btnDeleteIngress.Location = new Point(margin + contentWidth - 170, 20);
             btnDeleteIngress.Size = new Size(170, 35);
@@ -580,7 +602,7 @@ namespace KubernetesController
             if (servicesService == null)
                 return;
 
-            using (CreateServiceForm form = new CreateServiceForm(await GetNamespaceOptionsForFormsAsync()))
+            using (CreateServiceForm form = new CreateServiceForm())
             {
                 if (form.ShowDialog(this) != DialogResult.OK)
                     return;
@@ -635,6 +657,37 @@ namespace KubernetesController
             }
         }
 
+        private async void btnExportService_Click(object sender, EventArgs e)
+        {
+            if (dgvServices == null || dgvServices.CurrentRow == null)
+                return;
+
+            KubernetesServiceSummary selectedService = dgvServices.CurrentRow.DataBoundItem as KubernetesServiceSummary;
+            if (selectedService == null || string.IsNullOrWhiteSpace(selectedService.Name) || string.IsNullOrWhiteSpace(selectedService.Namespace))
+                return;
+
+            string encodedNamespace = Uri.EscapeDataString(selectedService.Namespace.Trim());
+            string encodedName = Uri.EscapeDataString(selectedService.Name.Trim());
+
+            try
+            {
+                btnExportService.Enabled = false;
+                await ExportResourceAsync(
+                    "/api/v1/namespaces/" + encodedNamespace + "/services/" + encodedName,
+                    selectedService.Namespace + "-" + selectedService.Name,
+                    "Exportar Service"
+                );
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Erro ao exportar service.\n\n" + ex.Message, "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                btnExportService.Enabled = true;
+            }
+        }
+
         private async void btnDeleteService_Click(object sender, EventArgs e)
         {
             if (servicesService == null || dgvServices == null || dgvServices.CurrentRow == null)
@@ -670,6 +723,37 @@ namespace KubernetesController
             finally
             {
                 btnDeleteService.Enabled = true;
+            }
+        }
+
+        private async void btnExportIngress_Click(object sender, EventArgs e)
+        {
+            if (dgvIngresses == null || dgvIngresses.CurrentRow == null)
+                return;
+
+            KubernetesIngressSummary selectedIngress = dgvIngresses.CurrentRow.DataBoundItem as KubernetesIngressSummary;
+            if (selectedIngress == null || string.IsNullOrWhiteSpace(selectedIngress.Name) || string.IsNullOrWhiteSpace(selectedIngress.Namespace))
+                return;
+
+            string encodedNamespace = Uri.EscapeDataString(selectedIngress.Namespace.Trim());
+            string encodedName = Uri.EscapeDataString(selectedIngress.Name.Trim());
+
+            try
+            {
+                btnExportIngress.Enabled = false;
+                await ExportResourceAsync(
+                    "/apis/networking.k8s.io/v1/namespaces/" + encodedNamespace + "/ingresses/" + encodedName,
+                    selectedIngress.Namespace + "-" + selectedIngress.Name,
+                    "Exportar Ingress"
+                );
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Erro ao exportar ingress.\n\n" + ex.Message, "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                btnExportIngress.Enabled = true;
             }
         }
 

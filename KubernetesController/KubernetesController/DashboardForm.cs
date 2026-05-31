@@ -41,6 +41,7 @@ namespace KubernetesController
         private Panel pnlNamespacesContent;
         private Button btnRefreshNamespaces;
         private Button btnCreateNamespace;
+        private Button btnExportNamespace;
         private Button btnDeleteNamespace;
         private DataGridView dgvNamespaces;
         private TabControl tabNamespaceDetails;
@@ -420,6 +421,13 @@ namespace KubernetesController
             btnCreateNamespace.Click += new EventHandler(btnCreateNamespace_Click);
             pnlNamespacesContent.Controls.Add(btnCreateNamespace);
 
+            btnExportNamespace = new Button();
+            btnExportNamespace.Name = "btnExportNamespace";
+            btnExportNamespace.Text = "Exportar";
+            btnExportNamespace.UseVisualStyleBackColor = true;
+            btnExportNamespace.Click += new EventHandler(btnExportNamespace_Click);
+            pnlNamespacesContent.Controls.Add(btnExportNamespace);
+
             btnDeleteNamespace = new Button();
             btnDeleteNamespace.Name = "btnDeleteNamespace";
             btnDeleteNamespace.Text = "Eliminar";
@@ -489,8 +497,11 @@ namespace KubernetesController
             btnRefreshNamespaces.Location = new Point(margin, 20);
             btnRefreshNamespaces.Size = new Size(190, 35);
 
-            btnCreateNamespace.Location = new Point(margin + contentWidth - 360, 20);
+            btnCreateNamespace.Location = new Point(margin + contentWidth - 550, 20);
             btnCreateNamespace.Size = new Size(170, 35);
+
+            btnExportNamespace.Location = new Point(margin + contentWidth - 360, 20);
+            btnExportNamespace.Size = new Size(170, 35);
 
             btnDeleteNamespace.Location = new Point(margin + contentWidth - 170, 20);
             btnDeleteNamespace.Size = new Size(170, 35);
@@ -1251,6 +1262,36 @@ namespace KubernetesController
             }
         }
 
+        private async void btnExportNamespace_Click(object sender, EventArgs e)
+        {
+            if (dgvNamespaces == null || dgvNamespaces.CurrentRow == null)
+                return;
+
+            KubernetesNamespaceSummary selectedNamespace = dgvNamespaces.CurrentRow.DataBoundItem as KubernetesNamespaceSummary;
+            if (selectedNamespace == null || string.IsNullOrWhiteSpace(selectedNamespace.Name))
+                return;
+
+            string encodedName = Uri.EscapeDataString(selectedNamespace.Name.Trim());
+
+            try
+            {
+                btnExportNamespace.Enabled = false;
+                await ExportResourceAsync(
+                    "/api/v1/namespaces/" + encodedName,
+                    selectedNamespace.Name,
+                    "Exportar Namespace"
+                );
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Erro ao exportar namespace.\n\n" + ex.Message, "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                btnExportNamespace.Enabled = true;
+            }
+        }
+
         private async void btnDeleteNamespace_Click(object sender, EventArgs e)
         {
             if (namespacesService == null || dgvNamespaces == null || dgvNamespaces.CurrentRow == null)
@@ -1292,191 +1333,6 @@ namespace KubernetesController
             {
                 btnDeleteNamespace.Enabled = true;
             }
-        }
-
-
-        private async Task<List<string>> GetNamespaceOptionsForFormsAsync()
-        {
-            List<string> result = GetKnownNamespaces();
-
-            if (namespacesService != null)
-            {
-                try
-                {
-                    List<KubernetesNamespaceSummary> summaries = await namespacesService.GetNamespacesAsync();
-                    if (summaries != null)
-                    {
-                        foreach (KubernetesNamespaceSummary item in summaries)
-                            AddUniqueValue(result, item == null ? null : item.Name);
-                    }
-                }
-                catch
-                {
-                    // Se a API falhar, a janela usa os namespaces já carregados ou "default".
-                }
-            }
-
-            AddUniqueValue(result, "default");
-            return result.OrderBy(v => string.Equals(v, "default", StringComparison.OrdinalIgnoreCase) ? 0 : 1).ThenBy(v => v).ToList();
-        }
-
-        private async Task<List<string>> GetContainerOptionsForFormsAsync()
-        {
-            List<string> result = GetKnownContainerOptions();
-
-            if (podsService != null)
-            {
-                try
-                {
-                    List<KubernetesPodDetails> loadedPods = await podsService.GetPodDetailsAsync();
-                    if (loadedPods != null && loadedPods.Count > 0)
-                    {
-                        podDetails = loadedPods;
-                        foreach (KubernetesPodDetails pod in loadedPods)
-                        {
-                            if (pod == null || pod.Containers == null)
-                                continue;
-
-                            foreach (KubernetesPodContainer container in pod.Containers)
-                            {
-                                if (container != null)
-                                    AddUniqueValue(result, BuildContainerOption(container.Name, container.Image));
-                            }
-                        }
-                    }
-                }
-                catch
-                {
-                    // Mantém apenas as sugestões já carregadas.
-                }
-            }
-
-            if (deploymentsService != null)
-            {
-                try
-                {
-                    List<KubernetesDeploymentDetails> loadedDeployments = await deploymentsService.GetDeploymentDetailsAsync();
-                    if (loadedDeployments != null && loadedDeployments.Count > 0)
-                    {
-                        deploymentDetails = loadedDeployments;
-                        foreach (KubernetesDeploymentDetails deployment in loadedDeployments)
-                        {
-                            if (deployment == null || deployment.Containers == null)
-                                continue;
-
-                            foreach (KubernetesDeploymentContainer container in deployment.Containers)
-                            {
-                                if (container != null)
-                                    AddUniqueValue(result, BuildContainerOption(container.Nome, container.Imagem));
-                            }
-                        }
-                    }
-                }
-                catch
-                {
-                    // Mantém apenas as sugestões já carregadas.
-                }
-            }
-
-            AddUniqueValue(result, "web:nginx");
-            return result.OrderBy(v => string.Equals(v, "web:nginx", StringComparison.OrdinalIgnoreCase) ? 0 : 1).ThenBy(v => v).ToList();
-        }
-
-        private List<string> GetKnownNamespaces()
-        {
-            List<string> result = new List<string>();
-
-            if (namespaceDetails != null)
-            {
-                foreach (KubernetesNamespaceDetails item in namespaceDetails)
-                    AddUniqueValue(result, item == null ? null : item.Name);
-            }
-
-            if (podDetails != null)
-            {
-                foreach (KubernetesPodDetails item in podDetails)
-                    AddUniqueValue(result, item == null ? null : item.Namespace);
-            }
-
-            if (deploymentDetails != null)
-            {
-                foreach (KubernetesDeploymentDetails item in deploymentDetails)
-                    AddUniqueValue(result, item == null ? null : item.Namespace);
-            }
-
-            if (serviceDetails != null)
-            {
-                foreach (KubernetesServiceDetails item in serviceDetails)
-                    AddUniqueValue(result, item == null ? null : item.Namespace);
-            }
-
-            if (ingressDetails != null)
-            {
-                foreach (KubernetesIngressDetails item in ingressDetails)
-                    AddUniqueValue(result, item == null ? null : item.Namespace);
-            }
-
-            AddUniqueValue(result, "default");
-            return result;
-        }
-
-        private List<string> GetKnownContainerOptions()
-        {
-            List<string> result = new List<string>();
-
-            if (podDetails != null)
-            {
-                foreach (KubernetesPodDetails pod in podDetails)
-                {
-                    if (pod == null || pod.Containers == null)
-                        continue;
-
-                    foreach (KubernetesPodContainer container in pod.Containers)
-                    {
-                        if (container != null)
-                            AddUniqueValue(result, BuildContainerOption(container.Name, container.Image));
-                    }
-                }
-            }
-
-            if (deploymentDetails != null)
-            {
-                foreach (KubernetesDeploymentDetails deployment in deploymentDetails)
-                {
-                    if (deployment == null || deployment.Containers == null)
-                        continue;
-
-                    foreach (KubernetesDeploymentContainer container in deployment.Containers)
-                    {
-                        if (container != null)
-                            AddUniqueValue(result, BuildContainerOption(container.Nome, container.Imagem));
-                    }
-                }
-            }
-
-            AddUniqueValue(result, "web:nginx");
-            return result;
-        }
-
-        private string BuildContainerOption(string name, string image)
-        {
-            string cleanName = string.IsNullOrWhiteSpace(name) ? "web" : name.Trim();
-            string cleanImage = string.IsNullOrWhiteSpace(image) ? "nginx" : image.Trim();
-
-            if (cleanImage.StartsWith("docker.io/", StringComparison.OrdinalIgnoreCase))
-                cleanImage = cleanImage.Substring("docker.io/".Length);
-
-            return cleanName + ":" + cleanImage;
-        }
-
-        private void AddUniqueValue(List<string> list, string value)
-        {
-            if (list == null || string.IsNullOrWhiteSpace(value))
-                return;
-
-            string clean = value.Trim();
-            if (!list.Any(v => string.Equals(v, clean, StringComparison.OrdinalIgnoreCase)))
-                list.Add(clean);
         }
 
         private async void btnRefreshDashboard_Click(object sender, EventArgs e)

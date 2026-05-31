@@ -1,6 +1,7 @@
 using KubernetesController.Models;
 using System;
 using System.Collections.Generic;
+using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 
@@ -61,6 +62,38 @@ namespace KubernetesController.Services
             }
 
             return namespaces;
+        }
+
+        public async Task<string> GetNamespaceJsonAsync(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                throw new ArgumentException("Seleciona um namespace válido.");
+
+            string cleanName = name.Trim();
+            string encodedName = Uri.EscapeDataString(cleanName);
+            string json = await api.GetAsync("/api/v1/namespaces/" + encodedName);
+
+            using (JsonDocument doc = JsonDocument.Parse(json))
+            {
+                JsonSerializerOptions options = new JsonSerializerOptions();
+                options.WriteIndented = true;
+                return JsonSerializer.Serialize(doc.RootElement, options);
+            }
+        }
+
+        public async Task<string> GetNamespaceYamlAsync(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                throw new ArgumentException("Seleciona um namespace válido.");
+
+            string json = await GetNamespaceJsonAsync(name);
+
+            using (JsonDocument doc = JsonDocument.Parse(json))
+            {
+                StringBuilder yaml = new StringBuilder();
+                WriteYamlElement(yaml, doc.RootElement, 0, null);
+                return yaml.ToString();
+            }
         }
 
         public async Task CreateNamespaceAsync(string name, string labelsText)
@@ -157,6 +190,101 @@ namespace KubernetesController.Services
             }
 
             return labels;
+        }
+
+        private void WriteYamlElement(StringBuilder yaml, JsonElement element, int indent, string key)
+        {
+            string currentIndent = new string(' ', indent);
+
+            if (!string.IsNullOrEmpty(key))
+            {
+                if (element.ValueKind == JsonValueKind.Object || element.ValueKind == JsonValueKind.Array)
+                {
+                    yaml.Append(currentIndent).Append(FormatYamlKey(key)).AppendLine(":");
+                    WriteYamlElement(yaml, element, indent + 2, null);
+                    return;
+                }
+
+                yaml.Append(currentIndent)
+                    .Append(FormatYamlKey(key))
+                    .Append(": ")
+                    .AppendLine(FormatYamlScalar(element));
+                return;
+            }
+
+            if (element.ValueKind == JsonValueKind.Object)
+            {
+                foreach (JsonProperty property in element.EnumerateObject())
+                    WriteYamlElement(yaml, property.Value, indent, property.Name);
+
+                return;
+            }
+
+            if (element.ValueKind == JsonValueKind.Array)
+            {
+                foreach (JsonElement item in element.EnumerateArray())
+                {
+                    if (item.ValueKind == JsonValueKind.Object)
+                    {
+                        yaml.Append(currentIndent).AppendLine("-");
+
+                        foreach (JsonProperty property in item.EnumerateObject())
+                            WriteYamlElement(yaml, property.Value, indent + 2, property.Name);
+                    }
+                    else if (item.ValueKind == JsonValueKind.Array)
+                    {
+                        yaml.Append(currentIndent).AppendLine("-");
+                        WriteYamlElement(yaml, item, indent + 2, null);
+                    }
+                    else
+                    {
+                        yaml.Append(currentIndent)
+                            .Append("- ")
+                            .AppendLine(FormatYamlScalar(item));
+                    }
+                }
+
+                return;
+            }
+
+            yaml.Append(currentIndent).AppendLine(FormatYamlScalar(element));
+        }
+
+        private string FormatYamlKey(string key)
+        {
+            return QuoteYamlString(key);
+        }
+
+        private string FormatYamlScalar(JsonElement element)
+        {
+            switch (element.ValueKind)
+            {
+                case JsonValueKind.String:
+                    return QuoteYamlString(element.GetString() ?? "");
+                case JsonValueKind.Number:
+                    return element.ToString();
+                case JsonValueKind.True:
+                    return "true";
+                case JsonValueKind.False:
+                    return "false";
+                case JsonValueKind.Null:
+                case JsonValueKind.Undefined:
+                    return "null";
+                default:
+                    return QuoteYamlString(element.ToString());
+            }
+        }
+
+        private string QuoteYamlString(string value)
+        {
+            if (value == null)
+                value = "";
+
+            return "\"" + value
+                .Replace("\\", "\\\\")
+                .Replace("\"", "\\\"")
+                .Replace("\r", "\\r")
+                .Replace("\n", "\\n") + "\"";
         }
 
         private string GetStringValue(JsonElement element, string propertyName)

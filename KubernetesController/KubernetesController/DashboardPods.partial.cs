@@ -16,6 +16,7 @@ namespace KubernetesController
         private Panel pnlPodsContent;
         private Button btnRefreshPods;
         private Button btnCreatePod;
+        private Button btnExportPod;
         private Button btnDeletePod;
         private DataGridView dgvPods;
         private TabControl tabPodDetails;
@@ -70,6 +71,13 @@ namespace KubernetesController
             btnCreatePod.UseVisualStyleBackColor = true;
             btnCreatePod.Click += new EventHandler(btnCreatePod_Click);
             pnlPodsContent.Controls.Add(btnCreatePod);
+
+            btnExportPod = new Button();
+            btnExportPod.Name = "btnExportPod";
+            btnExportPod.Text = "Exportar";
+            btnExportPod.UseVisualStyleBackColor = true;
+            btnExportPod.Click += new EventHandler(btnExportPod_Click);
+            pnlPodsContent.Controls.Add(btnExportPod);
 
             btnDeletePod = new Button();
             btnDeletePod.Name = "btnDeletePod";
@@ -136,8 +144,11 @@ namespace KubernetesController
             btnRefreshPods.Location = new Point(margin, 20);
             btnRefreshPods.Size = new Size(170, 35);
 
-            btnCreatePod.Location = new Point(margin + contentWidth - 360, 20);
+            btnCreatePod.Location = new Point(margin + contentWidth - 550, 20);
             btnCreatePod.Size = new Size(170, 35);
+
+            btnExportPod.Location = new Point(margin + contentWidth - 360, 20);
+            btnExportPod.Size = new Size(170, 35);
 
             btnDeletePod.Location = new Point(margin + contentWidth - 170, 20);
             btnDeletePod.Size = new Size(170, 35);
@@ -343,7 +354,7 @@ namespace KubernetesController
             if (podsService == null)
                 return;
 
-            using (CreatePodForm form = new CreatePodForm(await GetNamespaceOptionsForFormsAsync(), await GetContainerOptionsForFormsAsync()))
+            using (CreatePodForm form = new CreatePodForm())
             {
                 if (form.ShowDialog(this) != DialogResult.OK)
                     return;
@@ -370,6 +381,37 @@ namespace KubernetesController
                 {
                     btnCreatePod.Enabled = true;
                 }
+            }
+        }
+
+        private async void btnExportPod_Click(object sender, EventArgs e)
+        {
+            if (dgvPods == null || dgvPods.CurrentRow == null)
+                return;
+
+            KubernetesPodSummary selectedPod = dgvPods.CurrentRow.DataBoundItem as KubernetesPodSummary;
+            if (selectedPod == null || string.IsNullOrWhiteSpace(selectedPod.Name) || string.IsNullOrWhiteSpace(selectedPod.Namespace))
+                return;
+
+            string encodedNamespace = Uri.EscapeDataString(selectedPod.Namespace.Trim());
+            string encodedName = Uri.EscapeDataString(selectedPod.Name.Trim());
+
+            try
+            {
+                btnExportPod.Enabled = false;
+                await ExportResourceAsync(
+                    "/api/v1/namespaces/" + encodedNamespace + "/pods/" + encodedName,
+                    selectedPod.Namespace + "-" + selectedPod.Name,
+                    "Exportar Pod"
+                );
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Erro ao exportar pod.\n\n" + ex.Message, "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                btnExportPod.Enabled = true;
             }
         }
 
